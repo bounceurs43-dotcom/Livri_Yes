@@ -61433,7 +61433,7 @@ case 6:n=c.a.a.h(0,"value")
 h=n==null?null:J.a5(n)
 if(h==null)h="support@livriyes.com"
 s=7
-return A.n(A.xP(h,"<h3>Nouvelle Commande !</h3><p>La commande #"+o+" vient d'\xeatre pass\xe9e.</p><a href=\"https://livriyes.com/admin\">Ouvrir le panneau d'administration</a>","Nouvelle commande LivriYes #"+o),$async$$1)
+return A.n(A.xP(h,"<h3>Nouvelle Commande !</h3><p>La commande #"+o+" vient d'\xeatre pass\xe9e.</p><a href=\"https://livriyes-seven.vercel.app/\">Ouvrir le panneau d'administration</a>","Nouvelle commande LivriYes #"+o),$async$$1)
 case 7:g=c?" (Email envoy\xe9 \u2705)":" (Erreur Email \u274c)"
 if(f.c!=null)f.O(new A.aOJ(f,j,o,g,k))
 A.bnp("Nouvelle commande","La commande #"+o+" vient d'arriver.")
@@ -61554,7 +61554,7 @@ g=m==null?null:J.a5(m)
 if(g==null)g="support@livriyes.com"
 m="Demande de "+j
 s=9
-return A.n(A.xP(g,"<h3>Nouvelle Demande !</h3><p>Une demande de "+j+" a \xe9t\xe9 soumise pour la commande #"+o+'.</p><a href="https://livriyes.com/admin">Ouvrir le panneau d\'administration</a>',m+" - Commande #"+o),$async$$1)
+return A.n(A.xP(g,"<h3>Nouvelle Demande !</h3><p>Une demande de "+j+" a \xe9t\xe9 soumise pour la commande #"+o+'.</p><a href="https://livriyes-seven.vercel.app/">Ouvrir le panneau d\'administration</a>',m+" - Commande #"+o),$async$$1)
 case 9:f=c?" (Email envoy\xe9 \u2705)":" (Erreur Email \u274c)"
 if(e.c!=null)e.O(new A.aP0(e,i,j,o,f,k))
 A.bnp(m,"Une demande de "+j+" a \xe9t\xe9 faite pour la commande #"+o+".")
