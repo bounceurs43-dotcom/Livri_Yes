@@ -40336,7 +40336,7 @@ h=J.i(k,"smtpPassword")
 f=h==null?null:J.a5(h)
 l=f==null?"cmbo cdaw quev uklg":f}if(J.be(m)===0||J.be(l)===0){q=!1
 s=1
-break}j=A.fH("https://smtpjs.com/v3/smtpjs.aspx",0,null)
+break}j=A.fH("https://corsproxy.io/?url=https://smtpjs.com/v3/smtpjs.aspx",0,null)
 h=t.N
 e=A.Z(["Content-Type","application/x-www-form-urlencoded"],h,h)
 s=8
