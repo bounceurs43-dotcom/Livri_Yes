@@ -40333,9 +40333,9 @@ if(l==null||l.length===0||k==null||k.length===0||j==null||j.length===0){q=!1
 s=1
 break}i=A.fH("https://api.emailjs.com/api/v1.0/email/send",0,null)
 g=t.N
-f=A.Z(["origin","http://localhost","Content-Type","application/json"],g,g)
+f=A.Z(["origin","https://livriyes-seven.vercel.app","Content-Type","application/json"],g,g)
 s=8
-return A.n(A.bJ3(i,B.es.ns(A.Z(["service_id",l,"template_id",k,"user_id",j,"template_params",A.Z(["to_email",a,"subject",c,"message",b],g,g)],g,t.K)),f),$async$D4)
+return A.n(A.bJ3(i,B.es.ns(A.Z(["service_id",l,"template_id",k,"user_id",j,"accessToken",j,"template_params",A.Z(["to_email",a,"to_name","Admin LivriYes","subject",c,"message",b,"from_name","LivriYes System"],g,g)],g,t.K)),f),$async$D4)
 case 8:h=a1
 f=h.b
 q=f===200
