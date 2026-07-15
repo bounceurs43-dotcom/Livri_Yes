@@ -10148,7 +10148,7 @@ p=4
 A.bB("RealtimeDatabaseService: Getting promotions (isActive: "+A.l(d)+")...")
 n=null
 s=7
-return A.r(A.aw($.eW().gbg().bb("promotions_v2")).cG(0),$async$aKR)
+return A.r(A.aw($.eW().gbg().bb("promotions")).cG(0),$async$aKR)
 case 7:n=b
 if(n.a.a.h(0,"value")==null){A.bB("RealtimeDatabaseService: No promotions found in DB")
 j=A.a([],t.H7)
@@ -10192,7 +10192,7 @@ s=q}for(;;)switch(s){case 0:i=null
 h=!0
 g=null
 q=3
-o=A.aw(A.aw($.eW().gbg().bb("promotions_v2")).c.r8())
+o=A.aw(A.aw($.eW().gbg().bb("promotions")).c.r8())
 l=i
 if(l==null)l=d!=null&&d>0&&e>0?(d-e)/d*100:null
 n=l
@@ -10225,7 +10225,7 @@ q=3
 m=i
 if(m==null)m=d!=null&&d>0&&e>0?(d-e)/d*100:null
 o=m
-l=A.aw(A.aw($.eW().gbg().bb("promotions_v2")).c.cw(a1))
+l=A.aw(A.aw($.eW().gbg().bb("promotions")).c.cw(a1))
 k=h
 if(k==null)k=!0
 s=6
@@ -10250,7 +10250,7 @@ bKo(a){var s=0,r=A.z(t.H),q=1,p=[],o,n,m
 var $async$aL1=A.v(function(b,c){if(b===1){p.push(c)
 s=q}for(;;)switch(s){case 0:q=3
 s=6
-return A.r(A.aw(A.aw($.eW().gbg().bb("promotions_v2")).c.cw(a)).c.az(0,null),$async$aL1)
+return A.r(A.aw(A.aw($.eW().gbg().bb("promotions")).c.cw(a)).c.az(0,null),$async$aL1)
 case 6:q=1
 s=5
 break
@@ -10279,10 +10279,10 @@ g=A.dF(h,j,"")
 n=g.length===0?"category":g
 j=$.eW()
 s=7
-return A.r(A.aw(A.aw(j.gbg().bb("categories_v2")).c.cw(n)).cG(0),$async$a64)
+return A.r(A.aw(A.aw(j.gbg().bb("categories")).c.cw(n)).cG(0),$async$a64)
 case 7:m=a3
 if(m.a.a.h(0,"value")!=null)throw A.d(new A.KL("Une cat\xe9gorie avec ce nom existe d\xe9j\xe0."))
-j=A.aw(A.aw(j.gbg().bb("categories_v2")).c.cw(n))
+j=A.aw(A.aw(j.gbg().bb("categories")).c.cw(n))
 l=A.A(t.N,t.K)
 J.aV(l,"name",a0)
 J.aV(l,"description",b)
@@ -10328,7 +10328,7 @@ q=f
 s=1
 break}A.bB("RealtimeDatabaseService: Fetching categories from database...")
 s=7
-return A.r(A.aw($.eW().gbg().bb("categories_v2")).cG(0),$async$PJ)
+return A.r(A.aw($.eW().gbg().bb("categories")).cG(0),$async$PJ)
 case 7:n=b1
 if(n.a.a.h(0,"value")==null){A.bB("RealtimeDatabaseService: No categories found")
 f=t.vN
@@ -10377,7 +10377,7 @@ a0=$.kB
 if(a0==null)a0=$.kB=A.zw(null,null)
 a=b.e=a0.tA(b.c,a)
 b=a}else b=a
-A.aw(A.aw(b.bb("categories_v2")).c.cw(J.a7(k.a))).c.az(0,null).m2(new A.aKJ())}}$.rw=l
+A.aw(A.aw(b.bb("categories")).c.cw(J.a7(k.a))).c.az(0,null).m2(new A.aKJ())}}$.rw=l
 $.Ap=new A.ct(Date.now(),0,!1)
 A.bB("RealtimeDatabaseService: Returning "+J.bl(l)+" categories")
 q=l
@@ -10407,7 +10407,7 @@ bKq(a,b){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l
 var $async$aL3=A.v(function(c,d){if(c===1){o.push(d)
 s=p}for(;;)switch(s){case 0:p=4
 s=7
-return A.r(A.aw(A.aw($.eW().gbg().bb("categories_v2")).c.cw(a)).c.bS(0,b),$async$aL3)
+return A.r(A.aw(A.aw($.eW().gbg().bb("categories")).c.cw(a)).c.bS(0,b),$async$aL3)
 case 7:$.kU=$.j1=$.Ap=$.rw=null
 q=!0
 s=1
@@ -10436,7 +10436,7 @@ s=q}for(;;)switch(s){case 0:q=3
 o=A.A(t.N,t.z)
 for(n=0;n<a.length;++n)J.aV(o,a[n].a+"/order",n)
 s=6
-return A.r(A.aw($.eW().gbg().bb("categories_v2")).c.bS(0,o),$async$aL2)
+return A.r(A.aw($.eW().gbg().bb("categories")).c.bS(0,o),$async$aL2)
 case 6:$.kU=$.j1=$.Ap=$.rw=null
 q=1
 s=5
@@ -10458,7 +10458,7 @@ bKf(a5){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4
 var $async$Aq=A.v(function(a6,a7){if(a6===1){o.push(a7)
 s=p}for(;;)switch(s){case 0:p=4
 f=$.eW()
-e=A.aw(f.gbg().bb("subCategories_v2"))
+e=A.aw(f.gbg().bb("subCategories"))
 s=7
 return A.r(A.Al(e.a,e.b.zG(0,new A.mF("orderByChild","categoryId"))).Dz(a5).cG(0),$async$Aq)
 case 7:n=a7
@@ -10477,7 +10477,7 @@ a=f.e
 if(a==null){a=f.d
 a0=$.kB
 if(a0==null)a0=$.kB=A.zw(null,null)
-a=f.e=a0.tA(f.c,a)}a=A.aw(a.bb("products_v2"))
+a=f.e=a0.tA(f.c,a)}a=A.aw(a.bb("products"))
 a0=a.a
 a=A.R(a.b.a,b)
 a.push(new A.mF("orderByChild","subCategoryId"))
@@ -10509,7 +10509,7 @@ if(a0==null){a0=f.d
 a1=$.kB
 if(a1==null)a1=$.kB=A.zw(null,null)
 a0=f.e=a1.tA(f.c,a0)}s=17
-return A.r(A.aw(A.aw(a0.bb("products_v2")).c.cw(J.a7(h.a))).c.az(0,null),$async$Aq)
+return A.r(A.aw(A.aw(a0.bb("products")).c.cw(J.a7(h.a))).c.az(0,null),$async$Aq)
 case 17:s=15
 break
 case 16:case 14:a=f.e
@@ -10517,11 +10517,11 @@ if(a==null){a=f.d
 a0=$.kB
 if(a0==null)a0=$.kB=A.zw(null,null)
 a=f.e=a0.tA(f.c,a)}s=18
-return A.r(A.aw(A.aw(a.bb("subCategories_v2")).c.cw(k)).c.az(0,null),$async$Aq)
+return A.r(A.aw(A.aw(a.bb("subCategories")).c.cw(k)).c.az(0,null),$async$Aq)
 case 18:s=10
 break
 case 11:case 9:s=19
-return A.r(A.aw(A.aw(f.gbg().bb("categories_v2")).c.cw(a5)).c.az(0,null),$async$Aq)
+return A.r(A.aw(A.aw(f.gbg().bb("categories")).c.cw(a5)).c.az(0,null),$async$Aq)
 case 19:$.kU=$.j1=$.Ap=$.rw=null
 q=!0
 s=1
@@ -10549,7 +10549,7 @@ var $async$a66=A.v(function(e,f){if(e===1){o.push(f)
 s=p}for(;;)switch(s){case 0:p=4
 A.bB('RealtimeDatabaseService: Adding subcategory "'+d+'"')
 k=$.eW()
-n=A.aw(A.aw(k.gbg().bb("subCategories_v2")).c.r8())
+n=A.aw(A.aw(k.gbg().bb("subCategories")).c.r8())
 m=A.A(t.N,t.K)
 J.aV(m,"name",d)
 J.aV(m,"description",b)
@@ -10559,7 +10559,7 @@ J.aV(m,"createdAt",B.bE)
 if(c!=null)J.aV(m,"imageUrl",c)
 s=7
 return A.r(n.c.az(0,m),$async$a66)
-case 7:m=A.aw(A.aw(A.aw(A.aw(k.gbg().bb("categories_v2")).c.cw(a)).c.cw("subCategoryIds")).c.r8())
+case 7:m=A.aw(A.aw(A.aw(A.aw(k.gbg().bb("categories")).c.cw(a)).c.cw("subCategoryIds")).c.r8())
 k=n.c
 s=8
 return A.r(m.c.az(0,k.gmd(k)),$async$a66)
@@ -10600,7 +10600,7 @@ if(n!=null){A.bB("RealtimeDatabaseService: Returning cached subcategories for "+
 q=n
 s=1
 break}}A.bB("RealtimeDatabaseService: Fetching subcategories for "+a)
-i=A.aw($.eW().gbg().bb("subCategories_v2"))
+i=A.aw($.eW().gbg().bb("subCategories"))
 s=7
 return A.r(A.Al(i.a,i.b.zG(0,new A.mF("orderByChild","categoryId"))).Dz(a).cG(0),$async$aKW)
 case 7:m=c
@@ -10637,7 +10637,7 @@ break
 case 6:case 1:return A.x(q,r)
 case 2:return A.w(o.at(-1),r)}})
 return A.y($async$aKW,r)},
-bKm(a){var s=A.aw($.eW().gbg().bb("subCategories_v2"))
+bKm(a){var s=A.aw($.eW().gbg().bb("subCategories"))
 s=A.Al(s.a,s.b.zG(0,new A.mF("orderByChild","categoryId"))).Dz(a).gnn()
 return new A.dK(new A.aKZ(),s,s.$ti.i("dK<cj.T,E<dR>>"))},
 a67(){var s=0,r=A.z(t.aQ),q,p=2,o=[],n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2
@@ -10655,7 +10655,7 @@ q=h
 s=1
 break}A.bB("RealtimeDatabaseService: Fetching all subcategories")
 s=7
-return A.r(A.aw($.eW().gbg().bb("subCategories_v2")).cG(0),$async$a67)
+return A.r(A.aw($.eW().gbg().bb("subCategories")).cG(0),$async$a67)
 case 7:n=a5
 if(n.a.a.h(0,"value")==null){h=t.N
 e=t.tG
@@ -10710,7 +10710,7 @@ bKt(a,b){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l
 var $async$aL8=A.v(function(c,d){if(c===1){o.push(d)
 s=p}for(;;)switch(s){case 0:p=4
 s=7
-return A.r(A.aw(A.aw($.eW().gbg().bb("subCategories_v2")).c.cw(a)).c.bS(0,b),$async$aL8)
+return A.r(A.aw(A.aw($.eW().gbg().bb("subCategories")).c.cw(a)).c.bS(0,b),$async$aL8)
 case 7:$.kU=$.j1=null
 q=!0
 s=1
@@ -10737,7 +10737,7 @@ bKh(a){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l
 var $async$aKF=A.v(function(b,c){if(b===1){o.push(c)
 s=p}for(;;)switch(s){case 0:p=4
 s=7
-return A.r(A.aw(A.aw($.eW().gbg().bb("subCategories_v2")).c.cw(a)).c.az(0,null),$async$aKF)
+return A.r(A.aw(A.aw($.eW().gbg().bb("subCategories")).c.cw(a)).c.az(0,null),$async$aKF)
 case 7:$.kU=$.j1=null
 q=!0
 s=1
@@ -10765,11 +10765,11 @@ var $async$a65=A.v(function(a1,a2){if(a1===1){o.push(a2)
 s=p}for(;;)switch(s){case 0:p=4
 A.bB('RealtimeDatabaseService: Adding product "'+f+'"')
 l=$.eW()
-n=A.aw(A.aw(l.gbg().bb("products_v2")).c.r8())
+n=A.aw(A.aw(l.gbg().bb("products")).c.r8())
 k=A.a1(["name",f,"description",c,"price",g,"priceUnit",h,"imageUrl",d,"rating",0,"reviewCount",0,"categoryId",b,"subCategoryId",a0,"availableUnits",a,"isAvailable",!0,"isChoice",e,"createdAt",B.bE,"updatedAt",B.bE],t.N,t.K)
 s=7
 return A.r(n.c.az(0,k),$async$a65)
-case 7:l=A.aw(A.aw(A.aw(A.aw(l.gbg().bb("subCategories_v2")).c.cw(a0)).c.cw("productIds")).c.r8())
+case 7:l=A.aw(A.aw(A.aw(A.aw(l.gbg().bb("subCategories")).c.cw(a0)).c.cw("productIds")).c.r8())
 k=n.c
 s=8
 return A.r(l.c.az(0,k.gmd(k)),$async$a65)
@@ -10799,7 +10799,7 @@ a68(a){return A.bKi(a)},
 bKi(a){var s=0,r=A.z(t.Xw),q,p=2,o=[],n,m,l,k,j,i,h,g
 var $async$a68=A.v(function(b,c){if(b===1){o.push(c)
 s=p}for(;;)switch(s){case 0:p=4
-j=A.aw($.eW().gbg().bb("products_v2"))
+j=A.aw($.eW().gbg().bb("products"))
 s=7
 return A.r(A.Al(j.a,j.b.zG(0,new A.mF("orderByChild","subCategoryId"))).Dz(a).cG(0),$async$a68)
 case 7:n=c
@@ -10852,7 +10852,7 @@ PI(){var s=0,r=A.z(t.Xw),q,p=2,o=[],n,m,l,k,j,i
 var $async$PI=A.v(function(a,b){if(a===1){o.push(b)
 s=p}for(;;)switch(s){case 0:p=4
 s=7
-return A.r(A.aw($.eW().gbg().bb("products_v2")).cG(0),$async$PI)
+return A.r(A.aw($.eW().gbg().bb("products")).cG(0),$async$PI)
 case 7:n=b
 if(n.a.a.h(0,"value")!=null){m=t.f.a(n.a.a.h(0,"value"))
 k=J.nq(m)
@@ -10885,7 +10885,7 @@ a69(a){return A.bKj(a)},
 bKj(a){var s=0,r=A.z(t.Xw),q,p=2,o=[],n,m,l,k,j,i,h,g
 var $async$a69=A.v(function(b,c){if(b===1){o.push(c)
 s=p}for(;;)switch(s){case 0:p=4
-j=A.aw($.eW().gbg().bb("products_v2"))
+j=A.aw($.eW().gbg().bb("products"))
 s=7
 return A.r(A.Al(j.a,j.b.zG(0,new A.mF("orderByChild","categoryId"))).Dz(a).cG(0),$async$a69)
 case 7:n=c
@@ -10938,7 +10938,7 @@ aL5(a,b){return A.bKr(a,b)},
 bKr(a,b){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l,k,j
 var $async$aL5=A.v(function(c,d){if(c===1){o.push(d)
 s=p}for(;;)switch(s){case 0:p=4
-l=A.aw(A.aw($.eW().gbg().bb("products_v2")).c.cw(a))
+l=A.aw(A.aw($.eW().gbg().bb("products")).c.cw(a))
 n=A.pe(b,t.N,t.X)
 J.aV(n,"updatedAt",B.bE)
 s=7
@@ -10970,7 +10970,7 @@ s=q}for(;;)switch(s){case 0:q=3
 s=b.length!==0?6:7
 break
 case 6:s=8
-return A.r(A.aw(A.aw(A.aw($.eW().gbg().bb("subCategories_v2")).c.cw(b)).c.cw("productIds")).cG(0),$async$PK)
+return A.r(A.aw(A.aw(A.aw($.eW().gbg().bb("subCategories")).c.cw(b)).c.cw("productIds")).cG(0),$async$PK)
 case 8:o=e
 s=o.a.a.h(0,"value")!=null&&t.f.b(o.a.a.h(0,"value"))?9:10
 break
@@ -10991,11 +10991,11 @@ if(h==null)h=$.kB=A.zw(null,null)
 i=j.e=h.tA(j.c,i)
 j=i}else j=i
 s=15
-return A.r(A.aw(A.aw(A.aw(A.aw(j.bb("subCategories_v2")).c.cw(b)).c.cw("productIds")).c.cw(J.a7(m.a))).c.az(0,null),$async$PK)
+return A.r(A.aw(A.aw(A.aw(A.aw(j.bb("subCategories")).c.cw(b)).c.cw("productIds")).c.cw(J.a7(m.a))).c.az(0,null),$async$PK)
 case 15:case 14:s=11
 break
 case 12:case 10:case 7:s=16
-return A.r(A.aw(A.aw(A.aw(A.aw($.eW().gbg().bb("subCategories_v2")).c.cw(a)).c.cw("productIds")).c.r8()).c.az(0,c),$async$PK)
+return A.r(A.aw(A.aw(A.aw(A.aw($.eW().gbg().bb("subCategories")).c.cw(a)).c.cw("productIds")).c.r8()).c.az(0,c),$async$PK)
 case 16:$.kU=$.j1=null
 q=1
 s=5
@@ -11016,7 +11016,7 @@ bKg(a){var s=0,r=A.z(t.y),q,p=2,o=[],n,m,l
 var $async$aKE=A.v(function(b,c){if(b===1){o.push(c)
 s=p}for(;;)switch(s){case 0:p=4
 s=7
-return A.r(A.aw(A.aw($.eW().gbg().bb("products_v2")).c.cw(a)).c.az(0,null),$async$aKE)
+return A.r(A.aw(A.aw($.eW().gbg().bb("products")).c.cw(a)).c.az(0,null),$async$aKE)
 case 7:q=!0
 s=1
 break
@@ -11078,7 +11078,7 @@ return A.r(A.aw(f.gbg().bb("users")).cG(0),$async$Gh)
 case 6:o=b
 n=o.a.a.h(0,"value")!=null?J.bl(t.f.a(o.a.a.h(0,"value"))):0
 s=7
-return A.r(A.aw(f.gbg().bb("products_v2")).cG(0),$async$Gh)
+return A.r(A.aw(f.gbg().bb("products")).cG(0),$async$Gh)
 case 7:m=b
 l=m.a.a.h(0,"value")!=null?J.bl(t.f.a(m.a.a.h(0,"value"))):0
 s=8
@@ -158241,7 +158241,7 @@ B.fk=new A.yu(0,"none")
 B.rX=new A.yu(1,"low")
 B.cG=new A.yu(2,"medium")
 B.jW=new A.yu(3,"high")
-B.a6X=new A.E9("AIzaSyAWB5NHKPG4lAF5GgPs3M2JeNJ-U0G2aV8","1:550016293282:web:95bf5de2e6c7ec9fc63afb","550016293282","salimstore-f1830","salimstore-f1830.firebaseapp.com","https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app","salimstore-f1830.firebasestorage.app","G-S56376RNE1",null,null,null,null,null,null)
+B.a6X=new A.E9("AIzaSyAWB5NHKPG4lAF5GgPs3M2JeNJ-U0G2aV8","1:550016293282:web:95bf5de2e6c7ec9fc63afb","550016293282","salimstore-f1830","salimstore-f1830.firebaseapp.com","https://salimstore-f1830.firebaseio.com","salimstore-f1830.firebasestorage.app","G-S56376RNE1",null,null,null,null,null,null)
 B.aD=new A.M(0,0)
 B.a6Y=new A.a1v(B.aD,B.aD)
 B.oG=new A.e0(0,0)
