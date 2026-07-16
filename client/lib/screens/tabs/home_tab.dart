@@ -5,6 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../../services/announcement_service.dart';
 import '../../theme/app_theme.dart';
 import '../../services/realtime_database_service.dart';
@@ -271,85 +273,102 @@ class _HomeTabState extends State<HomeTab> {
     final prefs = await SharedPreferences.getInstance();
     final seenKey = 'announcement_seen_' + id;
     final alreadySeen = prefs.getBool(seenKey) ?? false;
-    if (alreadySeen) return;
+    final bool isForceUpdate = data['isForceUpdate'] == true;
+    if (alreadySeen && !isForceUpdate) return;
 
     if (!mounted) return;
 
     await showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: !isForceUpdate,
       builder: (context) {
         final String title = (data['title'] ?? 'Annonce').toString();
         final String message = (data['message'] ?? '').toString();
         final String? imageUrl = data['imageUrl'] as String?;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          titlePadding: EdgeInsets.zero,
-          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-          title: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        return PopScope(
+          canPop: !isForceUpdate,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.campaign, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
+            titlePadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            title: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: const BoxDecoration(
+                gradient: AppTheme.primaryGradient,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.campaign, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (imageUrl != null && imageUrl.trim().isNotEmpty) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stack) =>
+                          const SizedBox.shrink(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    message.isNotEmpty ? message : 'Nouvelle annonce.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: AppTheme.textPrimary),
                   ),
                 ),
               ],
             ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (imageUrl != null && imageUrl.trim().isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) =>
-                        const SizedBox.shrink(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  message.isNotEmpty ? message : 'Nouvelle annonce.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppTheme.textPrimary),
-                ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  if (isForceUpdate) {
+                    try {
+                      final snap = await FirebaseDatabase.instance.ref('settings/appVersion/playStoreUrl').get();
+                      final urlStr = snap.exists ? snap.value.toString() : 'https://play.google.com/store/apps/details?id=com.livriyes.Livriyes';
+                      final uri = Uri.parse(urlStr);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    } catch (e) {
+                      debugPrint('Error launching play store: $e');
+                    }
+                  } else {
+                    await prefs.setBool(seenKey, true);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  }
+                },
+                child: Text(isForceUpdate ? 'Mettre à jour' : 'OK'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                await prefs.setBool(seenKey, true);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('OK'),
-            ),
-          ],
         );
       },
     );

@@ -268,6 +268,7 @@ class _AnnouncementsManagementScreenState
       text: initial?['imageUrl']?.toString() ?? '',
     );
     bool active = (initial?['active'] ?? true) == true;
+    bool isForceUpdate = (initial?['isForceUpdate'] ?? false) == true;
 
     final result = await showModalBottomSheet<bool>(
       context: context,
@@ -325,6 +326,25 @@ class _AnnouncementsManagementScreenState
                         ],
                       ),
                       const SizedBox(height: 14),
+                      if (id == null) ...[
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setModal(() {
+                              isForceUpdate = true;
+                              titleCtrl.text = "⚠️ Mise à jour requise";
+                              messageCtrl.text = "Une nouvelle version de l'application est disponible. Veuillez la mettre à jour pour continuer à l'utiliser.";
+                              active = true;
+                            });
+                          },
+                          icon: const Icon(Icons.system_update_rounded),
+                          label: const Text('Modèle : Nouvelle mise à jour'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       TextField(
                         controller: titleCtrl,
                         decoration: const InputDecoration(
@@ -357,6 +377,22 @@ class _AnnouncementsManagementScreenState
                         onChanged: (v) => setModal(() => active = v),
                         title: const Text('Active'),
                       ),
+                      SwitchListTile(
+                        value: isForceUpdate,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (v) {
+                          setModal(() {
+                            isForceUpdate = v;
+                            if (v) {
+                              titleCtrl.text = "⚠️ Mise à jour requise";
+                              messageCtrl.text = "Une nouvelle version de l'application est disponible. Veuillez la mettre à jour pour continuer à l'utiliser.";
+                              active = true;
+                            }
+                          });
+                        },
+                        title: const Text('Forcer la mise à jour (Bloquant)'),
+                        subtitle: const Text('Bloque l\'application sur une page de mise à jour'),
+                      ),
                       const SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
@@ -379,6 +415,7 @@ class _AnnouncementsManagementScreenState
                                       ? null
                                       : imageCtrl.text.trim(),
                                   'active': active,
+                                  'isForceUpdate': isForceUpdate,
                                   'createdAt': ServerValue.timestamp,
                                   'updatedAt': ServerValue.timestamp,
                                 };
@@ -392,6 +429,7 @@ class _AnnouncementsManagementScreenState
                                       ? null
                                       : imageCtrl.text.trim(),
                                   'active': active,
+                                  'isForceUpdate': isForceUpdate,
                                   'updatedAt': ServerValue.timestamp,
                                 };
                                 await _byIdRef(id).update(updateData);
@@ -503,6 +541,7 @@ class _AnnouncementsManagementScreenState
         'message': (data['message'] ?? '').toString(),
         'imageUrl': data['imageUrl'],
         'active': (data['active'] ?? true) == true,
+        'isForceUpdate': (data['isForceUpdate'] ?? false) == true,
         'updatedAt': ServerValue.timestamp,
       };
       

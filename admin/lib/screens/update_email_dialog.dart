@@ -98,6 +98,10 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
             <p style="margin-top: 25px;">À très bientôt,</p>
             <p><strong>L'équipe Livriyes</strong></p>
           </div>
+          <div style="border-top: 1px solid #f3f4f6; margin-top: 30px; padding-top: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+            <p style="margin: 0;">Cet e-mail automatique a été envoyé à [email] car vous êtes inscrit sur l'application LivriYes.</p>
+            <p style="margin: 5px 0 0 0;">LivriYes, Béjaïa, Algérie • <a href="mailto:support@livriyes.app" style="color: #34C759; text-decoration: none;">support@livriyes.app</a></p>
+          </div>
         </div>
       ''';
     } else {
@@ -116,6 +120,10 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
             </div>
             <p style="font-size: 12px; color: #6b7280; margin-top: 30px;">Si le bouton ne fonctionne pas, copiez ce lien :<br><a href="$_playStoreUrl" style="color: #34C759;">$_playStoreUrl</a></p>
           </div>
+          <div style="border-top: 1px solid #f3f4f6; margin-top: 30px; padding-top: 15px; text-align: center; font-size: 12px; color: #9ca3af;">
+            <p style="margin: 0;">Cet e-mail automatique a été envoyé à [email] car vous êtes inscrit sur l'application LivriYes.</p>
+            <p style="margin: 5px 0 0 0;">LivriYes, Béjaïa, Algérie • <a href="mailto:support@livriyes.app" style="color: #34C759; text-decoration: none;">support@livriyes.app</a></p>
+          </div>
         </div>
       ''';
     }
@@ -125,7 +133,7 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
         final success = await NotificationService.sendEmailNotification(
           email: email,
           subject: subject,
-          htmlContent: htmlContent,
+          htmlContent: htmlContent.replaceAll('[email]', email),
         );
         if (success) successCount++;
       } catch (e) {
