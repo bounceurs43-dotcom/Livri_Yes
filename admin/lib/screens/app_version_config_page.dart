@@ -13,6 +13,7 @@ class AppVersionConfigPage extends StatefulWidget {
 
 class _AppVersionConfigPageState extends State<AppVersionConfigPage> {
   bool _loading = true;
+  bool _forceUpdatePopup = false;
 
   final TextEditingController _minVersionCtrl = TextEditingController();
   final TextEditingController _latestVersionCtrl = TextEditingController();
@@ -41,6 +42,10 @@ class _AppVersionConfigPageState extends State<AppVersionConfigPage> {
         _latestVersionCtrl.text = val['latestBuildNumber']?.toString() ?? '';
         _playStoreUrlCtrl.text = val['playStoreUrl']?.toString() ?? '';
       }
+      final forceUpdateSnap = await FirebaseDatabase.instance.ref('settings/forceUpdatePopup').get();
+      if (forceUpdateSnap.exists) {
+        _forceUpdatePopup = forceUpdateSnap.value == true;
+      }
       if (!mounted) return;
       setState(() => _loading = false);
     } catch (e) {
@@ -58,6 +63,7 @@ class _AppVersionConfigPageState extends State<AppVersionConfigPage> {
         'latestBuildNumber': int.tryParse(_latestVersionCtrl.text.trim()) ?? 0,
         'playStoreUrl': _playStoreUrlCtrl.text.trim(),
       });
+      await FirebaseDatabase.instance.ref('settings/forceUpdatePopup').set(_forceUpdatePopup);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Configuration enregistrée avec succès ! ✅')),
@@ -200,6 +206,20 @@ class _AppVersionConfigPageState extends State<AppVersionConfigPage> {
                                     labelText: 'Lien Play Store',
                                     prefixIcon: Icon(Icons.shop_rounded, color: Colors.green),
                                   ),
+                                ),
+                                const SizedBox(height: 16),
+                                SwitchListTile(
+                                  title: const Text('Forcer la mise à jour (Popup)'),
+                                  subtitle: Text(_forceUpdatePopup 
+                                      ? 'Les clients verront le popup de mise à jour obligatoire.' 
+                                      : 'Fonctionnement normal (facultatif).'),
+                                  value: _forceUpdatePopup,
+                                  activeColor: AppTheme.primaryColor,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _forceUpdatePopup = val;
+                                    });
+                                  },
                                 ),
                               ],
                             ),

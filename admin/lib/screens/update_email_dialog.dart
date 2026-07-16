@@ -16,6 +16,8 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
   List<Map<String, String>> _users = [];
   Set<String> _selectedEmails = {};
   String _searchQuery = '';
+  String _emailTemplate = 'announcement'; // 'announcement' or 'update'
+  String _playStoreUrl = 'https://play.google.com/store/apps/details?id=com.livriyes.Livriyes';
 
   List<Map<String, String>> get _filteredUsers {
     if (_searchQuery.isEmpty) return _users;
@@ -35,6 +37,11 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
 
   Future<void> _loadUsers() async {
     try {
+      final configSnap = await FirebaseDatabase.instance.ref('settings/appVersion/playStoreUrl').get();
+      if (configSnap.exists) {
+        _playStoreUrl = configSnap.value?.toString() ?? _playStoreUrl;
+      }
+
       final snap = await FirebaseDatabase.instance.ref('users').get();
       final List<Map<String, String>> loadedUsers = [];
       if (snap.exists) {
@@ -66,22 +73,58 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
     setState(() => _sending = true);
     int successCount = 0;
     
-    final htmlContent = '''
-      <div style="font-family: sans-serif; text-align: center; padding: 20px;">
-        <h2 style="color: #FF3B30;">⚠️ Mise à jour requise</h2>
-        <p>Bonjour,</p>
-        <p>Votre application LivriYes nécessite une mise à jour importante pour continuer à fonctionner correctement et afficher les nouveaux produits.</p>
-        <p>Veuillez cliquer sur le bouton ci-dessous pour mettre à jour l'application :</p>
-        <a href="https://livriyes-seven.vercel.app/#/update" style="display: inline-block; padding: 12px 24px; background-color: #34C759; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">Mettre à jour maintenant</a>
-        <p style="margin-top: 30px; font-size: 12px; color: #888;">Si le bouton ne fonctionne pas, copiez ce lien : https://livriyes-seven.vercel.app/#/update</p>
-      </div>
-    ''';
+    String subject;
+    String htmlContent;
+
+    if (_emailTemplate == 'announcement') {
+      subject = "Mise à jour importante de l'application Livriyes";
+      htmlContent = '''
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #34C759; margin: 0; font-size: 24px;">Livriyes</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Mise à jour de l'application</p>
+          </div>
+          <div style="line-height: 1.6; color: #374151; font-size: 15px;">
+            <p>Bonjour,</p>
+            <p>Afin de vous offrir une expérience toujours meilleure, nous réalisons actuellement une importante mise à jour de l'application Livriyes.</p>
+            <p>Cette évolution est le fruit de vos retours d'expérience et de vos précieux conseils recueillis au cours des 10 premiers jours suivant notre lancement.</p>
+            <p>Cette mise à jour devrait durer au maximum 4 à 5 jours. Nous mettons tout en œuvre pour qu'elle soit déployée dans les meilleurs délais.</p>
+            <p>Nous vous remercions sincèrement pour votre confiance et votre participation à l'amélioration de Livriyes.</p>
+            <p>Notre équipe reste à votre écoute pour toute question ou suggestion :</p>
+            <ul style="padding-left: 20px; color: #4b5563;">
+              <li><strong>E-mail :</strong> support@livriyes.app</li>
+              <li><strong>Téléphone :</strong> +213 778 02 99 65</li>
+            </ul>
+            <p style="margin-top: 25px;">À très bientôt,</p>
+            <p><strong>L'équipe Livriyes</strong></p>
+          </div>
+        </div>
+      ''';
+    } else {
+      subject = "Action requise : Mettez à jour votre application Livriyes";
+      htmlContent = '''
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #FF3B30; margin: 0; font-size: 24px;">⚠️ Mise à jour requise</h2>
+          </div>
+          <div style="line-height: 1.6; color: #374151; font-size: 15px; text-align: center;">
+            <p>Bonjour,</p>
+            <p>Votre application LivriYes nécessite une mise à jour importante pour continuer à fonctionner correctement et afficher les nouveaux produits.</p>
+            <p>Veuillez cliquer sur le bouton ci-dessous pour mettre à jour l'application :</p>
+            <div style="margin: 25px 0;">
+              <a href="$_playStoreUrl" style="display: inline-block; padding: 14px 28px; background-color: #34C759; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(52,199,89,0.2);">Mettre à jour maintenant</a>
+            </div>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 30px;">Si le bouton ne fonctionne pas, copiez ce lien :<br><a href="$_playStoreUrl" style="color: #34C759;">$_playStoreUrl</a></p>
+          </div>
+        </div>
+      ''';
+    }
 
     for (final email in _selectedEmails) {
       try {
         final success = await NotificationService.sendEmailNotification(
           email: email,
-          subject: 'Action requise : Mettez à jour votre application LivriYes',
+          subject: subject,
           htmlContent: htmlContent,
         );
         if (success) successCount++;
@@ -132,6 +175,34 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
                           ),
                         ],
                       ),
+                      DropdownButtonFormField<String>(
+                        value: _emailTemplate,
+                        decoration: InputDecoration(
+                          labelText: "Type d'email / Alerte",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'announcement',
+                            child: Text('Mise à jour en cours (Annonce)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'update',
+                            child: Text('Nouvelle version disponible (Mise à jour)'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _emailTemplate = val;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: TextField(
