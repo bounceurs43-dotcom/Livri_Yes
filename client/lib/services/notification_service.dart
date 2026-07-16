@@ -29,6 +29,37 @@ class NotificationService {
     }
 
     // Initialize local notifications
+    await initializeLocalNotificationsOnly();
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      if (notification != null && android != null && !kIsWeb) {
+        showNotification(
+          title: notification.title ?? '',
+          body: notification.body ?? '',
+        );
+      }
+    });
+
+    // Handle token refresh
+    _messaging.onTokenRefresh.listen((token) {
+      _saveTokenToDatabase(token);
+    });
+
+    // Get initial token
+    String? token = await _messaging.getToken();
+    if (token != null) {
+      _saveTokenToDatabase(token);
+    }
+
+    // Start listening to order status updates in RTDB for local notifications
+    startOrdersListener();
+  }
+
+  static Future<void> initializeLocalNotificationsOnly() async {
     if (!kIsWeb) {
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -59,33 +90,6 @@ class NotificationService {
             ?.createNotificationChannel(channel);
       }
     }
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
-
-      if (notification != null && android != null && !kIsWeb) {
-        showNotification(
-          title: notification.title ?? '',
-          body: notification.body ?? '',
-        );
-      }
-    });
-
-    // Handle token refresh
-    _messaging.onTokenRefresh.listen((token) {
-      _saveTokenToDatabase(token);
-    });
-
-    // Get initial token
-    String? token = await _messaging.getToken();
-    if (token != null) {
-      _saveTokenToDatabase(token);
-    }
-
-    // Start listening to order status updates in RTDB for local notifications
-    startOrdersListener();
   }
 
   static StreamSubscription<DatabaseEvent>? _ordersSubscription;
@@ -152,6 +156,10 @@ class NotificationService {
         }
       });
     });
+  }
+
+  static void notifyStatusChange(String orderId, String status, {bool isNew = false}) {
+    _notifyStatusChange(orderId, status, isNew: isNew);
   }
 
   static void _notifyStatusChange(String orderId, String status, {bool isNew = false}) {

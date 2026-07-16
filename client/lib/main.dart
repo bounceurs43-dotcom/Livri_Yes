@@ -16,6 +16,8 @@ import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
+import 'services/background_service.dart';
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -32,6 +34,10 @@ void main() async {
 
   // Initialize Notifications
   await NotificationService.initialize();
+
+  // Initialize Background Service for order updates
+  await BackgroundService.initialize();
+  await BackgroundService.registerBackgroundTask();
 
   final localeController = LocaleController();
   await localeController.loadSavedLocale();
