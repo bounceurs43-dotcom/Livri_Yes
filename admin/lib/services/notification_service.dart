@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase_options.dart';
+import '../utils/browser_helper.dart';
+
 
 class NotificationService {
   static final FirebaseDatabase _db = FirebaseDatabase.instance;
@@ -68,6 +70,10 @@ class NotificationService {
 
       // Method 1: Google Apps Script Web App (Completely CORS-free & direct Gmail)
       if (appsScriptUrl != null && appsScriptUrl.isNotEmpty) {
+        if (kIsWeb) {
+          // Bypasses browser CORS policy on redirect
+          return await sendEmailViaFetch(appsScriptUrl, email, subject, htmlContent);
+        }
         final response = await http.post(
           Uri.parse(appsScriptUrl),
           headers: {

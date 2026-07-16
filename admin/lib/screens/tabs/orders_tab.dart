@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -17,6 +17,7 @@ import '../../firebase_options.dart';
 import '../../services/product_service.dart';
 import '../../models/product_models.dart';
 import '../../utils/web_safe_image.dart';
+import '../../services/realtime_database_service.dart';
 
 class _StatusVisuals {
   final Color color;
@@ -279,8 +280,6 @@ class OrdersTabState extends State<OrdersTab>
     final expressFee = _safeToDouble(order['expressFee']);
     final tip = _safeToDouble(order['tip']);
     final total = _safeToDouble(order['total']);
-
-    String formatCurrency(double value) => '${value.toString()} €';
 
     String formatCurrency(double value) => '${value.toString()} €';
 
@@ -1257,8 +1256,6 @@ class OrdersTabState extends State<OrdersTab>
             receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
         final status = (order['status'] ?? '').toString();
         final visuals = _resolveStatusVisuals(status);
-
-        String formatCurrency(double value) => '${value.toString()} €';
 
         String formatCurrency(double value) => '${value.toString()} €';
 
