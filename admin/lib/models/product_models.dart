@@ -1,0 +1,226 @@
+List<String> _parseStringList(dynamic source) {
+  if (source == null) return [];
+  if (source is Iterable) {
+    return source
+        .map((e) => e?.toString())
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  if (source is Map) {
+    return source.values
+        .map((e) => e?.toString())
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  return [];
+}
+
+class Product {
+  final String id;
+  final String name;
+  final String description;
+  final double price;
+  final String priceUnit; // Added field
+  final String imageUrl;
+  final double rating;
+  final int reviewCount;
+  final String categoryId;
+  final String subCategoryId;
+  final List<String> availableUnits;
+  final bool isAvailable;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isChoice; // Choice of Livriyes
+
+  Product({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    this.priceUnit = '1kg', // Added with default
+    required this.imageUrl,
+    required this.rating,
+    required this.reviewCount,
+    required this.categoryId,
+    required this.subCategoryId,
+    required this.availableUnits,
+    required this.isAvailable,
+    required this.createdAt,
+    required this.updatedAt,
+    this.isChoice = false,
+  });
+
+  factory Product.fromMap(Map<String, dynamic> map, String id) {
+    return Product(
+      id: id,
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      price: (map['price'] ?? 0).toDouble(),
+      priceUnit: map['priceUnit'] ?? '1kg',
+      imageUrl: map['imageUrl'] ?? '',
+      rating: (map['rating'] ?? 0).toDouble(),
+      reviewCount: map['reviewCount'] ?? 0,
+      categoryId: map['categoryId'] ?? '',
+      subCategoryId: map['subCategoryId'] ?? '',
+      availableUnits: _parseStringList(map['availableUnits']),
+      isAvailable: map['isAvailable'] ?? true,
+      createdAt: map['createdAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
+          : DateTime.now(),
+      isChoice: map['isChoice'] ?? false,
+    );
+  }
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      price: json['price'].toDouble(),
+      priceUnit: json['priceUnit'] ?? '1kg',
+      imageUrl: json['imageUrl'],
+      rating: json['rating'].toDouble(),
+      reviewCount: json['reviewCount'],
+      categoryId: json['categoryId'],
+      subCategoryId: json['subCategoryId'],
+      availableUnits: _parseStringList(json['availableUnits']),
+      isAvailable: json['isAvailable'] ?? true,
+      createdAt: json['createdAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['updatedAt'])
+          : DateTime.now(),
+      isChoice: json['isChoice'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price': price,
+      'priceUnit': priceUnit,
+      'imageUrl': imageUrl,
+      'rating': rating,
+      'reviewCount': reviewCount,
+      'categoryId': categoryId,
+      'subCategoryId': subCategoryId,
+      'availableUnits': availableUnits,
+      'isAvailable': isAvailable,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'isChoice': isChoice,
+    };
+  }
+}
+
+class Category {
+  final String id;
+  final String name;
+  final String description;
+  final String iconName;
+  final String color;
+  final String? iconUrl;
+  final List<String> subCategoryIds;
+  final DateTime createdAt;
+  final int order;
+  final double preparationFee;
+
+  Category({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.iconName,
+    required this.color,
+    this.iconUrl,
+    required this.subCategoryIds,
+    required this.createdAt,
+    this.order = 0,
+    this.preparationFee = 0.0,
+  });
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      iconName: json['iconName'],
+      color: json['color'],
+      iconUrl: json['iconUrl'],
+      subCategoryIds: _parseStringList(json['subCategoryIds']),
+      createdAt: json['createdAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
+          : (json['createdAt'] is String ? DateTime.parse(json['createdAt']) : DateTime.now()),
+      order: json['order'] ?? 0,
+      preparationFee: (json['preparationFee'] ?? 0.0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'iconName': iconName,
+      'color': color,
+      'iconUrl': iconUrl,
+      'subCategoryIds': subCategoryIds,
+      'createdAt': createdAt.toIso8601String(),
+      'order': order,
+      'preparationFee': preparationFee,
+    };
+  }
+}
+
+class SubCategory {
+  final String id;
+  final String name;
+  final String description;
+  final String categoryId;
+  final String? imageUrl;
+  final List<String> productIds;
+  final DateTime createdAt;
+
+  SubCategory({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.categoryId,
+    this.imageUrl,
+    required this.productIds,
+    required this.createdAt,
+  });
+
+  factory SubCategory.fromJson(Map<String, dynamic> json) {
+    return SubCategory(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      categoryId: json['categoryId'],
+      imageUrl: json['imageUrl'],
+      productIds: _parseStringList(json['productIds']),
+      createdAt: json['createdAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'categoryId': categoryId,
+      'imageUrl': imageUrl,
+      'productIds': productIds,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+}
