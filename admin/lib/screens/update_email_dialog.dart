@@ -19,6 +19,12 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
   String _emailTemplate = 'announcement'; // 'announcement' or 'update'
   String _playStoreUrl = 'https://play.google.com/store/apps/details?id=com.livriyes.Livriyes';
 
+  String _announcementSubject = "Mise à jour importante de l'application Livriyes";
+  String _announcementBody = "Afin de vous offrir une expérience toujours meilleure, nous réalisons actuellement une importante mise à jour de l'application Livriyes.\n\nCette évolution est le fruit de vos retours d'expérience et de vos précieux conseils recueillis au cours des 10 premiers jours suivant notre lancement.\n\nCette mise à jour devrait durer au maximum 4 à 5 jours. Nous mettons tout en œuvre pour qu'elle soit déployée dans les meilleurs délais.\n\nNous vous remercions sincèrement pour votre confiance et votre participation à l'amélioration de Livriyes.\n\nNotre équipe reste à votre écoute pour toute question ou suggestion :";
+
+  String _updateSubject = "Action requise : Mettez à jour votre application Livriyes";
+  String _updateBody = "Votre application LivriYes nécessite une mise à jour importante pour continuer à fonctionner correctement et afficher les nouveaux produits.\n\nVeuillez cliquer sur le bouton ci-dessous pour mettre à jour l'application :";
+
   List<Map<String, String>> get _filteredUsers {
     if (_searchQuery.isEmpty) return _users;
     final query = _searchQuery.toLowerCase();
@@ -75,9 +81,9 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
     
     String subject;
     String htmlContent;
-
-    if (_emailTemplate == 'announcement') {
-      subject = "Mise à jour importante de l'application Livriyes";
+     if (_emailTemplate == 'announcement') {
+      subject = _announcementSubject;
+      final formattedBody = _announcementBody.replaceAll('\n', '<br>');
       htmlContent = '''
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -86,11 +92,7 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
           </div>
           <div style="line-height: 1.6; color: #374151; font-size: 15px;">
             <p>Bonjour,</p>
-            <p>Afin de vous offrir une expérience toujours meilleure, nous réalisons actuellement une importante mise à jour de l'application Livriyes.</p>
-            <p>Cette évolution est le fruit de vos retours d'expérience et de vos précieux conseils recueillis au cours des 10 premiers jours suivant notre lancement.</p>
-            <p>Cette mise à jour devrait durer au maximum 4 à 5 jours. Nous mettons tout en œuvre pour qu'elle soit déployée dans les meilleurs délais.</p>
-            <p>Nous vous remercions sincèrement pour votre confiance et votre participation à l'amélioration de Livriyes.</p>
-            <p>Notre équipe reste à votre écoute pour toute question ou suggestion :</p>
+            <p>$formattedBody</p>
             <ul style="padding-left: 20px; color: #4b5563;">
               <li><strong>E-mail :</strong> support@livriyes.app</li>
               <li><strong>Téléphone :</strong> +213 778 02 99 65</li>
@@ -105,7 +107,8 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
         </div>
       ''';
     } else {
-      subject = "Action requise : Mettez à jour votre application Livriyes";
+      subject = _updateSubject;
+      final formattedBody = _updateBody.replaceAll('\n', '<br>');
       htmlContent = '''
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
           <div style="text-align: center; margin-bottom: 20px;">
@@ -113,8 +116,7 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
           </div>
           <div style="line-height: 1.6; color: #374151; font-size: 15px; text-align: center;">
             <p>Bonjour,</p>
-            <p>Votre application LivriYes nécessite une mise à jour importante pour continuer à fonctionner correctement et afficher les nouveaux produits.</p>
-            <p>Veuillez cliquer sur le bouton ci-dessous pour mettre à jour l'application :</p>
+            <p>$formattedBody</p>
             <div style="margin: 25px 0;">
               <a href="$_playStoreUrl" style="display: inline-block; padding: 14px 28px; background-color: #34C759; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(52,199,89,0.2);">Mettre à jour maintenant</a>
             </div>
@@ -150,6 +152,71 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
     }
   }
 
+  void _openEditTemplateModal() {
+    final isAnn = _emailTemplate == 'announcement';
+    final subjectCtrl = TextEditingController(text: isAnn ? _announcementSubject : _updateSubject);
+    final bodyCtrl = TextEditingController(text: isAnn ? _announcementBody : _updateBody);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(isAnn ? 'Modifier le modèle : Annonce' : 'Modifier le modèle : Mise à jour'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectCtrl,
+                  decoration: const InputDecoration(
+                    labelText: "Sujet de l'email",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bodyCtrl,
+                  minLines: 5,
+                  maxLines: 10,
+                  decoration: const InputDecoration(
+                    labelText: "Corps du message",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  if (isAnn) {
+                    _announcementSubject = subjectCtrl.text.trim();
+                    _announcementBody = bodyCtrl.text.trim();
+                  } else {
+                    _updateSubject = subjectCtrl.text.trim();
+                    _updateBody = bodyCtrl.text.trim();
+                  }
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Modèle d\'email mis à jour pour cette session ✅')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+              child: const Text('Valider'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -183,32 +250,44 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
                           ),
                         ],
                       ),
-                      DropdownButtonFormField<String>(
-                        value: _emailTemplate,
-                        decoration: InputDecoration(
-                          labelText: "Type d'email / Alerte",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _emailTemplate,
+                              decoration: InputDecoration(
+                                labelText: "Type d'email / Alerte",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'announcement',
+                                  child: Text('Mise à jour en cours (Annonce)'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'update',
+                                  child: Text('Nouvelle version disponible (Mise à jour)'),
+                                ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _emailTemplate = val;
+                                  });
+                                }
+                              },
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'announcement',
-                            child: Text('Mise à jour en cours (Annonce)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'update',
-                            child: Text('Nouvelle version disponible (Mise à jour)'),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _openEditTemplateModal,
+                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                            tooltip: 'Modifier ce modèle',
                           ),
                         ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _emailTemplate = val;
-                            });
-                          }
-                        },
                       ),
                       const SizedBox(height: 12),
                       Padding(

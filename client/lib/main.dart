@@ -22,22 +22,36 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Initialize WebView platform (only on web, no-op on mobile)
-  initializeWebView();
+  try {
+    // Initialize WebView platform (only on web, no-op on mobile)
+    initializeWebView();
 
-  // Ensure Firebase is initialized
-  if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Ensure Firebase is initialized
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+
+    // Initialize Notifications
+    try {
+      await NotificationService.initialize();
+    } catch (e) {
+      debugPrint('Warning: NotificationService initialization failed: $e');
+    }
+
+    // Initialize Background Service for order updates
+    try {
+      await BackgroundService.initialize();
+      await BackgroundService.registerBackgroundTask();
+    } catch (e) {
+      debugPrint('Warning: BackgroundService initialization failed: $e');
+    }
+  } catch (e) {
+    debugPrint('Critical: Firebase/App initialization failed: $e');
+    // Ensure splash screen is removed even if initialization crashes
+    FlutterNativeSplash.remove();
   }
-
-  // Initialize Notifications
-  await NotificationService.initialize();
-
-  // Initialize Background Service for order updates
-  await BackgroundService.initialize();
-  await BackgroundService.registerBackgroundTask();
 
   final localeController = LocaleController();
   await localeController.loadSavedLocale();
