@@ -29,7 +29,10 @@ class CityService {
   }
 
   static List<String> getWilayas() {
-    return List.from(_wilayas);
+    if (_allowedWilayaCodes.isEmpty) {
+      return List.from(_wilayas);
+    }
+    return _wilayas.where((w) => isWilayaAllowed(w)).toList();
   }
 
   static bool isWilayaAllowed(String wilayaName) {

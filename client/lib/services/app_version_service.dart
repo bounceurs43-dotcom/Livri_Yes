@@ -40,9 +40,13 @@ class AppVersionService {
   }
 
   static void listenForForceUpdate(BuildContext context) {
-    FirebaseDatabase.instance.ref('settings/forceUpdatePopup').onValue.listen((event) {
+    FirebaseDatabase.instance.ref('settings/forceUpdatePopup').onValue.listen((event) async {
       if (event.snapshot.value == true && context.mounted) {
-        forceShowUpdateDialog(context);
+        final snap = await FirebaseDatabase.instance.ref('settings/appVersion/playStoreUrl').get();
+        final url = snap.exists ? snap.value.toString() : '';
+        if (context.mounted) {
+          forceShowUpdateDialog(context, url);
+        }
       }
     });
   }

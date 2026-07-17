@@ -11,6 +11,7 @@ import '../services/address_service.dart';
 import '../services/receiver_service.dart';
 import '../theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class CheckoutAddressScreen extends StatefulWidget {
   final Map<String, dynamic>? initialAddress;
@@ -73,6 +74,22 @@ class _CheckoutAddressScreenState extends State<CheckoutAddressScreen> {
         print('Error loading cities: $e');
       }
     }
+
+    try {
+      final snap = await FirebaseDatabase.instance.ref('settings/allowedWilayas').get();
+      if (snap.exists) {
+        List<String> codes = [];
+        if (snap.value is List) {
+          codes = (snap.value as List).cast<String>();
+        } else if (snap.value is Map) {
+          codes = (snap.value as Map).values.cast<String>().toList();
+        }
+        CityService.setAllowedWilayas(codes);
+      }
+    } catch (e) {
+      print('Error loading allowed wilayas: $e');
+    }
+
     setState(() {
       _wilayas = CityService.getWilayas();
       if (_wilayas.isNotEmpty && !_wilayas.contains(_selectedWilaya)) {
@@ -389,13 +406,14 @@ class _CheckoutAddressScreenState extends State<CheckoutAddressScreen> {
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                       TextFormField(
                         controller: _nameController,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: 'Nom complet',
                           prefixIcon: const Icon(Icons.person_outline),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          errorMaxLines: 2,
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) return 'Veuillez entrer le nom';
@@ -417,6 +435,7 @@ class _CheckoutAddressScreenState extends State<CheckoutAddressScreen> {
                             child: Text('+213', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                           ),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          errorMaxLines: 2,
                         ),
                         validator: (val) {
                           if (val == null || val.trim().isEmpty) {

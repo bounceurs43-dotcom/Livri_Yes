@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/city_service.dart';
 import '../theme/app_theme.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class AddressSelectionDialog extends StatefulWidget {
   final String? currentAddress;
@@ -34,6 +35,22 @@ class _AddressSelectionDialogState extends State<AddressSelectionDialog> {
         );
         await CityService.loadCities(jsonString);
       }
+
+      try {
+        final snap = await FirebaseDatabase.instance.ref('settings/allowedWilayas').get();
+        if (snap.exists) {
+          List<String> codes = [];
+          if (snap.value is List) {
+            codes = (snap.value as List).cast<String>();
+          } else if (snap.value is Map) {
+            codes = (snap.value as Map).values.cast<String>().toList();
+          }
+          CityService.setAllowedWilayas(codes);
+        }
+      } catch (e) {
+        print('Error loading allowed wilayas in dialog: $e');
+      }
+
       setState(() {
         _wilayas = CityService.getWilayas();
         _loading = false;
