@@ -1,16 +1,16 @@
 class ContactSupportConfig {
   ContactSupportConfig._();
 
-  static String supportEmail = 'masterr9111@gmail.com';
-  static String supportPhone = '0553776497';
-  static String supportWhatsApp = '0553776497';
+  static String supportEmail = 'support@livriyes.app';
+  static String supportPhone = '+213778029965';
+  static String supportWhatsApp = '+213778029965';
 
   static Uri buildSupportEmailUri({String? body}) {
     return Uri(
       scheme: 'mailto',
       path: supportEmail,
       queryParameters: {
-        'subject': 'Assistance SalimStore',
+        'subject': 'Assistance LivriYes',
         if (body != null && body.trim().isNotEmpty) 'body': body.trim(),
       },
     );
