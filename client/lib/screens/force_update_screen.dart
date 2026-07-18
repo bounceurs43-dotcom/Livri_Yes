@@ -37,7 +37,7 @@ class ForceUpdateScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Une nouvelle version de l\'application est disponible. Vous devez la mettre à jour pour continuer à l\'utiliser.',
+                  'Une mise à jour est nécessaire pour continuer.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,

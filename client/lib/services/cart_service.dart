@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'server_wakeup_service.dart';
 
+import 'realtime_database_service.dart';
+
 class CartItem {
   final String id;
   final String productId;
@@ -206,6 +208,45 @@ class CartService {
   static Future<double> getTotal() async {
     final items = await getCartItems();
     return items.fold<double>(0, (sum, item) => sum + item.totalPrice);
+  }
+
+  static Future<void> refreshCart() async {
+    try {
+      final items = await getCartItems();
+      if (items.isEmpty) return;
+
+      final allProducts = await RealtimeDatabaseService.getAllProducts();
+      final productMap = {for (var p in allProducts) p.id: p};
+
+      final List<CartItem> updatedItems = [];
+      for (final item in items) {
+        final product = productMap[item.productId];
+        // If product doesn't exist anymore or is unavailable, remove from cart
+        if (product == null || !product.isAvailable) {
+          continue;
+        }
+
+        // Update product information
+        updatedItems.add(CartItem(
+          id: item.id,
+          productId: item.productId,
+          productName: product.name,
+          productImageUrl: product.imageUrl,
+          unitPrice: product.price,
+          quantity: item.quantity,
+          unit: item.unit,
+          originalPrice: product.originalPrice,
+          discountPercentage: product.discountPercentage,
+          priceUnit: product.priceUnit,
+          categoryId: product.categoryId,
+        ));
+      }
+
+      await _saveCart(updatedItems);
+      _notifyCartChanged(updatedItems);
+    } catch (e) {
+      print('Error refreshing cart: $e');
+    }
   }
 
   static Future<void> _saveCart(List<CartItem> items) async {

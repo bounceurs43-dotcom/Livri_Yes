@@ -657,6 +657,7 @@ class _CartTabState extends State<CartTab> {
       debugPrint('Error fetching payment keys: $e');
     }
     setState(() => _loading = true);
+    await CartService.refreshCart();
     final items = await CartService.getCartItems();
     setState(() {
       _cartItems = items;

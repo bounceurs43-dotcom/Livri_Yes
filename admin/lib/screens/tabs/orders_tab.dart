@@ -1822,93 +1822,136 @@ class OrdersTabState extends State<OrdersTab>
                       ),
                       const SizedBox(height: 28),
                       Text('Produits', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-                      const SizedBox(height: 12),
-                      ...items.map((item) {
-                        final name = (item['productName'] ?? 'Produit').toString();
-                        final qty = _formatQuantity(item['quantity']);
-                        final unit = (item['unit'] ?? '').toString();
-                        final totalItem = _safeToDouble(item['totalPrice'] ?? item['price'] ?? 0);
-                        final quantityLabel = unit.isEmpty ? qty : '$qty $unit';
-                        final isRefunded = item['status'] == 'refunded';
-                        final isReplaced = item['isReplaced'] == true;
+                      (() {
+                        final Map<String, List<Map<String, dynamic>>> groupedItems = {};
+                        for (var item in items) {
+                          final categoryId = (item['categoryId'] ?? 'Autres').toString();
+                          if (!groupedItems.containsKey(categoryId)) {
+                            groupedItems[categoryId] = [];
+                          }
+                          groupedItems[categoryId]!.add(item);
+                        }
 
-                        final isPrepared = item['isPrepared'] == true;
+                        final List<Widget> groupedWidgets = [];
+                        for (var entry in groupedItems.entries) {
+                          final categoryId = entry.key;
+                          String categoryName = categoryId;
+                          try {
+                            final cat = _categories.firstWhere((c) => c.id == categoryId);
+                            categoryName = cat.name;
+                          } catch (_) {
+                            if (categoryId == 'Autres') categoryName = 'Autres';
+                          }
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: isPrepared,
-                                activeColor: AppTheme.successColor,
-                                onChanged: (val) async {
-                                  if (val == null) return;
-                                  item['isPrepared'] = val;
-                                  setDialogState(() {});
-                                  await _toggleItemPreparation(
-                                    (order['id'] ?? order['key']).toString(),
-                                    item,
-                                    val,
-                                  );
-                                },
+                          groupedWidgets.add(
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12, bottom: 6),
+                              child: Text(
+                                categoryName.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor.withOpacity(0.85),
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            ),
+                          );
+
+                          for (var item in entry.value) {
+                            final name = (item['productName'] ?? 'Produit').toString();
+                            final qty = _formatQuantity(item['quantity']);
+                            final unit = (item['unit'] ?? '').toString();
+                            final totalItem = _safeToDouble(item['totalPrice'] ?? item['price'] ?? 0);
+                            final quantityLabel = unit.isEmpty ? qty : '$qty $unit';
+                            final isRefunded = item['status'] == 'refunded';
+                            final isReplaced = item['isReplaced'] == true;
+                            final isPrepared = item['isPrepared'] == true;
+
+                            groupedWidgets.add(
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
                                   children: [
+                                    Checkbox(
+                                      value: isPrepared,
+                                      activeColor: AppTheme.successColor,
+                                      onChanged: (val) async {
+                                        if (val == null) return;
+                                        item['isPrepared'] = val;
+                                        setDialogState(() {});
+                                        await _toggleItemPreparation(
+                                          (order['id'] ?? order['key']).toString(),
+                                          item,
+                                          val,
+                                        );
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '$name ($quantityLabel)',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              color: isRefunded ? AppTheme.textSecondary : AppTheme.textPrimary,
+                                              decoration: (isRefunded || isPrepared) ? TextDecoration.lineThrough : null,
+                                            ),
+                                          ),
+                                          if (isReplaced)
+                                            Text(
+                                              'Remplacé (Original: ${item['originalProductName']})',
+                                              style: TextStyle(fontSize: 10, color: AppTheme.accentColor, fontStyle: FontStyle.italic),
+                                            ),
+                                          if (isRefunded)
+                                            const Text(
+                                              'Remboursé',
+                                              style: TextStyle(fontSize: 10, color: AppTheme.errorColor, fontWeight: FontWeight.bold),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                     Text(
-                                      '$name ($quantityLabel)',
+                                      '${totalItem.toStringAsFixed(2)} €',
                                       style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
                                         color: isRefunded ? AppTheme.textSecondary : AppTheme.textPrimary,
                                         decoration: (isRefunded || isPrepared) ? TextDecoration.lineThrough : null,
                                       ),
                                     ),
-                                    if (isReplaced)
-                                      Text(
-                                        'Remplacé (Original: ${item['originalProductName']})',
-                                        style: TextStyle(fontSize: 10, color: AppTheme.accentColor, fontStyle: FontStyle.italic),
-                                      ),
-                                    if (isRefunded)
-                                      const Text(
-                                        'Remboursé',
-                                        style: TextStyle(fontSize: 10, color: AppTheme.errorColor, fontWeight: FontWeight.bold),
+                                    if (status == 'pending' || status == 'processing' || status == 'en attente' || status == 'livraison')
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(Icons.swap_horiz, size: 20, color: AppTheme.accentColor),
+                                            onPressed: () => _showProductReplacementDialog(order, item, onDone: () => setDialogState(() {})),
+                                            tooltip: 'Remplacer ce produit',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: const Icon(Icons.money_off_rounded, size: 20, color: AppTheme.errorColor),
+                                            onPressed: () => _confirmItemRefund(order, item, onDone: () => setDialogState(() {})),
+                                            tooltip: 'Rembourser ce produit',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                        ],
                                       ),
                                   ],
                                 ),
                               ),
-                              Text(
-                                '${totalItem.toStringAsFixed(2)} €',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: isRefunded ? AppTheme.textSecondary : AppTheme.textPrimary,
-                                  decoration: isRefunded ? TextDecoration.lineThrough : null,
-                                ),
-                              ),
-                              if (status == 'pending' || status == 'processing' || status == 'en attente' || status == 'livraison')
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.swap_horiz, size: 20, color: AppTheme.accentColor),
-                                      onPressed: () => _showProductReplacementDialog(order, item, onDone: () => setDialogState(() {})),
-                                      tooltip: 'Remplacer ce produit',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(Icons.money_off_rounded, size: 20, color: AppTheme.errorColor),
-                                      onPressed: () => _confirmItemRefund(order, item, onDone: () => setDialogState(() {})),
-                                      tooltip: 'Rembourser ce produit',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
+                            );
+                          }
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: groupedWidgets,
                         );
-                      }).toList(),
+                      }()),
                       const Divider(),
                       _buildDetailRow('Sous-total', '${cartTotal.toStringAsFixed(2)} €'),
                       if (deliveryFee > 0) _buildDetailRow('Frais de livraison', '${deliveryFee.toStringAsFixed(2)} €'),

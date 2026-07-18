@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +14,8 @@ import 'package:printing/printing.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/pill_page_header.dart';
+import '../../models/product_models.dart';
+import '../../services/realtime_database_service.dart';
 
 class _StatusVisuals {
   final Color color;
@@ -135,10 +137,98 @@ class OrdersTabState extends State<OrdersTab>
     }
   }
 
+  List<pw.Widget> _buildGroupedItemsPdf(
+    List<Map<String, dynamic>> items,
+    pw.Font boldFont,
+    String Function(double) formatCurrency,
+    List<Category> categories,
+  ) {
+    if (items.isEmpty) return [];
+
+    Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (var item in items) {
+      String categoryId = (item['categoryId'] ?? 'Autres').toString();
+      if (!grouped.containsKey(categoryId)) {
+        grouped[categoryId] = [];
+      }
+      grouped[categoryId]!.add(item);
+    }
+
+    List<pw.Widget> widgets = [];
+
+    for (var entry in grouped.entries) {
+      String categoryId = entry.key;
+      String categoryName = categoryId;
+      try {
+        final cat = categories.firstWhere((c) => c.id == categoryId);
+        categoryName = cat.name;
+      } catch (_) {
+        if (categoryId == 'Autres') categoryName = 'Autres';
+      }
+
+      int idx = 0;
+      final itemRows = entry.value.map((item) {
+        final name = (item['productName'] ?? 'Produit').toString();
+        final qty = _formatQuantity(item['quantity']);
+        final unit = (item['unit'] ?? '').toString();
+        final unitPrice = _safeToDouble(item['unitPrice'] ?? item['price'] ?? 0);
+        final itemTotal = _safeToDouble(item['totalPrice'] ?? (unitPrice * item['quantity']) ?? 0);
+        
+        idx++;
+        return [
+          '$idx',
+          name,
+          unit.isNotEmpty ? '$qty $unit' : qty,
+          formatCurrency(unitPrice),
+          formatCurrency(itemTotal),
+        ];
+      }).toList();
+
+      widgets.add(
+        pw.Container(
+          margin: const pw.EdgeInsets.only(top: 10, bottom: 6),
+          child: pw.Text(
+            categoryName.toUpperCase(),
+            style: pw.TextStyle(
+              font: boldFont,
+              fontSize: 12,
+              color: PdfColors.blueGrey800,
+            ),
+          ),
+        ),
+      );
+
+      widgets.add(
+        pw.TableHelper.fromTextArray(
+          headers: ['N°', 'Nom du produit', 'Quantité', 'Prix unitaire', 'Total'],
+          data: itemRows,
+          headerDecoration: const pw.BoxDecoration(
+            color: PdfColors.blueGrey700,
+          ),
+          headerStyle: pw.TextStyle(
+            color: PdfColors.white,
+            fontWeight: pw.FontWeight.bold,
+          ),
+          cellAlignment: pw.Alignment.centerLeft,
+          columnWidths: {
+            0: const pw.FlexColumnWidth(0.5),
+            1: const pw.FlexColumnWidth(2.5),
+            2: const pw.FlexColumnWidth(1.2),
+            3: const pw.FlexColumnWidth(1.2),
+            4: const pw.FlexColumnWidth(1.2),
+          },
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   List<pw.Widget> _buildOrderPdfContent(
     Map<String, dynamic> order,
     pw.Font regularFont,
     pw.Font boldFont,
+    List<Category> categories,
   ) {
     final orderId = _resolveOrderId(order);
     final customerName =
@@ -162,20 +252,6 @@ class OrdersTabState extends State<OrdersTab>
 
     String formatCurrency(double value) => '${value.toString()} €';
 
-    final itemRows = items.map((item) {
-      final productName = (item['productName'] ?? 'Produit').toString();
-      final qty = _formatQuantity(item['quantity']);
-      final unit = (item['unit'] ?? '').toString();
-      final totalPrice = _safeToDouble(
-        item['totalPrice'] ?? item['price'] ?? 0,
-      );
-      return [
-        productName,
-        unit.isNotEmpty ? '$qty $unit' : qty,
-        formatCurrency(totalPrice),
-      ];
-    }).toList();
-
     return [
       pw.Container(
         padding: const pw.EdgeInsets.all(20),
@@ -189,7 +265,7 @@ class OrdersTabState extends State<OrdersTab>
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              'SalimStore',
+              'LivriYes',
               style: pw.TextStyle(
                 fontSize: 26,
                 font: boldFont,
@@ -260,28 +336,12 @@ class OrdersTabState extends State<OrdersTab>
           ],
         ),
       ),
-      if (itemRows.isNotEmpty) ...[
-        pw.SizedBox(height: 20),
-        pw.Text(
-          'Articles commandés',
-          style: pw.TextStyle(fontSize: 16, font: boldFont),
-        ),
-        pw.SizedBox(height: 10),
-        pw.Table.fromTextArray(
-          headers: ['Produit', 'Quantité', 'Montant'],
-          data: itemRows,
-          headerStyle: pw.TextStyle(font: boldFont, color: PdfColors.white),
-          headerDecoration: const pw.BoxDecoration(
-            color: PdfColors.blueGrey700,
-          ),
-          cellAlignment: pw.Alignment.centerLeft,
-          columnWidths: {
-            0: const pw.FlexColumnWidth(2.6),
-            1: const pw.FlexColumnWidth(1.2),
-            2: const pw.FlexColumnWidth(1.2),
-          },
-        ),
-      ],
+      pw.SizedBox(height: 20),
+      pw.Text(
+        'Articles commandés',
+        style: pw.TextStyle(fontSize: 16, font: boldFont),
+      ),
+      ..._buildGroupedItemsPdf(items, boldFont, formatCurrency, categories),
       pw.SizedBox(height: 20),
       pw.Container(
         padding: const pw.EdgeInsets.all(16),
@@ -353,11 +413,15 @@ class OrdersTabState extends State<OrdersTab>
     final regularFont = fonts.base;
     final boldFont = fonts.bold;
     final pdfTheme = pw.ThemeData.withFont(base: regularFont, bold: boldFont);
+    
+    // Load categories for grouping
+    final categories = await RealtimeDatabaseService.getCategories();
+
     doc.addPage(
       pw.MultiPage(
         margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
         theme: pdfTheme,
-        build: (context) => _buildOrderPdfContent(order, regularFont, boldFont),
+        build: (context) => _buildOrderPdfContent(order, regularFont, boldFont, categories),
       ),
     );
 
@@ -410,13 +474,16 @@ class OrdersTabState extends State<OrdersTab>
       final boldFont = fonts.bold;
       final pdfTheme = pw.ThemeData.withFont(base: regularFont, bold: boldFont);
 
+      // Load categories for grouping
+      final categories = await RealtimeDatabaseService.getCategories();
+
       for (final order in orders) {
         doc.addPage(
           pw.MultiPage(
             margin: const pw.EdgeInsets.symmetric(horizontal: 32, vertical: 28),
             theme: pdfTheme,
             build: (context) =>
-                _buildOrderPdfContent(order, regularFont, boldFont),
+                _buildOrderPdfContent(order, regularFont, boldFont, categories),
           ),
         );
       }
@@ -729,6 +796,21 @@ class OrdersTabState extends State<OrdersTab>
 
   @override
   bool get wantKeepAlive => true;
+
+  List<Category> _categories = [];
+
+  Future<void> _loadCategories() async {
+    try {
+      final cats = await RealtimeDatabaseService.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = cats;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading categories in OrdersTab: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -1506,36 +1588,80 @@ class OrdersTabState extends State<OrdersTab>
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              ...items.map<Widget>((item) {
-                final qty = _formatQuantity(item['quantity']);
-                final unit = (item['unit'] ?? '').toString();
-                final itemTotal = _safeToDouble(
-                  item['totalPrice'] ?? item['price'] ?? 0,
-                );
+              (() {
+                final Map<String, List<Map<String, dynamic>>> groupedItems = {};
+                for (var item in items) {
+                  final categoryId = (item['categoryId'] ?? 'Autres').toString();
+                  if (!groupedItems.containsKey(categoryId)) {
+                    groupedItems[categoryId] = [];
+                  }
+                  groupedItems[categoryId]!.add(item);
+                }
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          unit.isNotEmpty
-                              ? '${item['productName'] ?? 'Produit'} ($qty $unit)'
-                              : '${item['productName'] ?? 'Produit'} ($qty)',
-                          style: const TextStyle(fontSize: 13),
+                final groupedWidgets = <Widget>[];
+                for (var entry in groupedItems.entries) {
+                  final categoryId = entry.key;
+                  String categoryName = categoryId;
+                  try {
+                    final cat = _categories.firstWhere((c) => c.id == categoryId);
+                    categoryName = cat.name;
+                  } catch (_) {
+                    if (categoryId == 'Autres') categoryName = 'Autres';
+                  }
+
+                  groupedWidgets.add(
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 4),
+                      child: Text(
+                        categoryName.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor.withOpacity(0.8),
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      Text(
-                        _formatCurrency(itemTotal),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                    ),
+                  );
+
+                  for (var item in entry.value) {
+                    final qty = _formatQuantity(item['quantity']);
+                    final unit = (item['unit'] ?? '').toString();
+                    final itemTotal = _safeToDouble(
+                      item['totalPrice'] ?? item['price'] ?? 0,
+                    );
+
+                    groupedWidgets.add(
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                unit.isNotEmpty
+                                    ? '${item['productName'] ?? 'Produit'} ($qty $unit)'
+                                    : '${item['productName'] ?? 'Produit'} ($qty)',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                            Text(
+                              _formatCurrency(itemTotal),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  }
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: groupedWidgets,
                 );
-              }),
+              }()),
               const Divider(),
               _buildDetailRow('Sous-total', _formatCurrency(cartTotal)),
               if (deliveryFee > 0)
