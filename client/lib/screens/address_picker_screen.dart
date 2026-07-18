@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +6,8 @@ import 'package:geocoding/geocoding.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/address_service.dart';
+import '../services/city_service.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../theme/app_theme.dart';
@@ -47,7 +49,25 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
         _mapReadyCompleter.complete();
       }
     });
+    _loadAllowedWilayas();
     _initializeLocation();
+  }
+
+  Future<void> _loadAllowedWilayas() async {
+    try {
+      final snap = await FirebaseDatabase.instance.ref('settings/allowedWilayas').get();
+      if (snap.exists) {
+        List<String> codes = [];
+        if (snap.value is List) {
+          codes = (snap.value as List).cast<String>();
+        } else if (snap.value is Map) {
+          codes = (snap.value as Map).values.cast<String>().toList();
+        }
+        CityService.setAllowedWilayas(codes);
+      }
+    } catch (e) {
+      print('Error loading allowed wilayas in picker: $e');
+    }
   }
 
   void _setMode(int mode) {
@@ -230,6 +250,58 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
     }
   }
 
+  bool _isLocationAllowed(Map<String, dynamic> location) {
+    if (!CityService.isLoaded()) return true;
+
+    final allowedWilayas = CityService.getWilayas().map((w) => w.toLowerCase()).toList();
+    if (allowedWilayas.isEmpty) return true;
+
+    final displayName = (location['display_name'] ?? '').toString().toLowerCase();
+    for (final allowed in allowedWilayas) {
+      if (_normalizeString(displayName).contains(_normalizeString(allowed))) {
+        return true;
+      }
+    }
+
+    final address = location['address'] as Map<dynamic, dynamic>?;
+    if (address != null) {
+      final fields = [
+        address['state']?.toString(),
+        address['county']?.toString(),
+        address['city']?.toString(),
+        address['town']?.toString(),
+        address['suburb']?.toString(),
+      ];
+      for (final field in fields) {
+        if (field != null && field.isNotEmpty) {
+          final normalizedField = _normalizeString(field.toLowerCase());
+          for (final allowed in allowedWilayas) {
+            if (normalizedField.contains(_normalizeString(allowed))) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  String _normalizeString(String str) {
+    return str
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ï', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ô', 'o')
+        .replaceAll('û', 'u')
+        .replaceAll('ç', 'c');
+  }
+
   Future<void> _searchAddress(String query) async {
     if (query.trim().isEmpty) {
       setState(() => _searchResults = []);
@@ -248,8 +320,10 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        final List<Map<String, dynamic>> parsedData = List<Map<String, dynamic>>.from(data);
+        final filteredData = parsedData.where((loc) => _isLocationAllowed(loc)).toList();
         setState(() {
-          _searchResults = List<Map<String, dynamic>>.from(data);
+          _searchResults = filteredData;
           _isSearching = false;
         });
       } else {
@@ -287,6 +361,27 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
 
   Future<void> _saveMapAddress() async {
     if (_mapSelectedAddress != null && _selectedLocation != null) {
+      bool isAllowed = false;
+      final allowedWilayas = CityService.getWilayas().map((w) => _normalizeString(w.toLowerCase())).toList();
+      final normalizedAddress = _normalizeString(_mapSelectedAddress!.toLowerCase());
+      
+      for (final allowed in allowedWilayas) {
+        if (normalizedAddress.contains(allowed)) {
+          isAllowed = true;
+          break;
+        }
+      }
+      
+      if (allowedWilayas.isNotEmpty && !isAllowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Désolé, la livraison n'est pas encore disponible dans cette wilaya."),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+
       // Show dialog to name the address
       final result = await _showSaveAddressDialog();
       if (result == null) return; // User cancelled

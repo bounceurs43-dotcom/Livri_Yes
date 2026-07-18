@@ -543,6 +543,34 @@ class _CartTabState extends State<CartTab> {
           _selectedAddress = addressData;
           _updateDeliveryContext(addressData);
         });
+
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            final addresses = await AddressService.getAddresses();
+            String? existingId;
+            for (final addr in addresses) {
+              if (addr['wilaya'] == addressData['wilaya'] &&
+                  addr['commune'] == addressData['commune'] &&
+                  addr['latitude'] == addressData['latitude'] &&
+                  addr['longitude'] == addressData['longitude'] &&
+                  addr['label'] == addressData['label']) {
+                existingId = addr['id'];
+                break;
+              }
+            }
+            if (existingId != null) {
+              await AddressService.setDefaultAddress(existingId);
+            } else {
+              final newAddressId = await AddressService.addAddress(addressData);
+              if (newAddressId != null) {
+                await AddressService.setDefaultAddress(newAddressId);
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Error saving new address from cart: $e');
+        }
       }
       
       if (receiverData != null) {
