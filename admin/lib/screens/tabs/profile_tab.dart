@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,8 +13,50 @@ import '../payment_config_page.dart';
 import '../app_version_config_page.dart';
 import '../wilayas_config_page.dart';
 
-class ProfileTab extends StatelessWidget {
+class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
+
+  @override
+  State<ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<ProfileTab> {
+  bool _ordersEnabled = true;
+  bool _loadingSettings = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final snap = await FirebaseDatabase.instance.ref('settings/ordersEnabled').get();
+      if (snap.exists) {
+        setState(() {
+          _ordersEnabled = snap.value == true;
+          _loadingSettings = false;
+        });
+      } else {
+        setState(() => _loadingSettings = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading settings in ProfileTab: $e');
+      setState(() => _loadingSettings = false);
+    }
+  }
+
+  Future<void> _toggleOrdersEnabled(bool val) async {
+    setState(() {
+      _ordersEnabled = val;
+    });
+    try {
+      await FirebaseDatabase.instance.ref('settings/ordersEnabled').set(val);
+    } catch (e) {
+      debugPrint('Error toggling ordersEnabled: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +200,48 @@ class ProfileTab extends StatelessWidget {
                       },
                       icon: const Icon(Icons.map_rounded),
                       label: const Text('Wilayas de Livraison'),
+                    ),
+                  ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.2),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 40 : 16,
+                vertical: 8,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isDesktop ? 800 : double.infinity,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: SwitchListTile(
+                      activeColor: AppTheme.primaryColor,
+                      title: const Text(
+                        'Activer les commandes',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      subtitle: Text(
+                        _ordersEnabled
+                            ? 'Les clients peuvent passer des commandes.'
+                            : 'Les commandes sont temporairement désactivées.',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                      value: _ordersEnabled,
+                      onChanged: _loadingSettings ? null : _toggleOrdersEnabled,
                     ),
                   ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.2),
                 ),

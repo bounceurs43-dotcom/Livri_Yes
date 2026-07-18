@@ -460,16 +460,37 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
                               }
                               
                               if ((isFood && hasNonFood) || (!isFood && hasFood)) {
-                                 if (context.mounted) {
-                                   ScaffoldMessenger.of(context).showSnackBar(
-                                     const SnackBar(
-                                       content: Text("Vous ne pouvez pas commander à la fois des fruits, légumes, de l'alimentation générale ou de la viande avec un autre type de produit. Veuillez passer une commande distincte."),
-                                       backgroundColor: AppTheme.errorColor,
-                                       duration: Duration(seconds: 4),
-                                     )
-                                   );
-                                 }
-                                 return; // Stop execution
+                                  if (context.mounted) {
+                                    showDialog(
+                                      context: context,
+                                      builder: (dialogContext) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        title: const Row(
+                                          children: [
+                                            Icon(Icons.warning_amber_rounded, color: AppTheme.errorColor, size: 28),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Attention',
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                        content: const Text(
+                                          "Vous ne pouvez pas commander à la fois des fruits, légumes, de l'alimentation générale ou de la viande avec un autre type de produit. Veuillez passer une commande distincte.",
+                                          style: TextStyle(fontSize: 14, height: 1.4),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dialogContext),
+                                            child: const Text('OK', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  return; // Stop execution
                               }
                             }
                           } catch(e) {
