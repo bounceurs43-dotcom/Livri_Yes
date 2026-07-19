@@ -82,6 +82,8 @@ class _CartTabState extends State<CartTab> {
   static const double _expressDeliveryTotalCost = 25.0;
   double _bejaiaFee = 3.49;
   double _otherWilayaFee = 8.99;
+  double _bejaiaElectroFee = 14.99;
+  double _otherWilayaElectroFee = 24.99;
 
   List<String> _allowedWilayaCodes = ['06', '15', '18', '19', '34'];
   static const Map<String, String> _wilayaDisplayNames = {
@@ -206,12 +208,70 @@ class _CartTabState extends State<CartTab> {
       );
     }
 
+  bool _hasElectroMenagerInCart() {
+    for (final item in _cartItems) {
+      final categoryId = item.categoryId;
+      if (categoryId != null && categoryId.isNotEmpty) {
+        final cat = _categories.firstWhere(
+          (c) => c.id == categoryId,
+          orElse: () => Category(id: '', name: '', description: '', iconName: '', color: '', subCategoryIds: [], createdAt: DateTime.now()),
+        );
+        final nameLower = cat.name.toLowerCase();
+        final idLower = cat.id.toLowerCase();
+        if (nameLower.contains('électroménager') ||
+            nameLower.contains('electromenager') ||
+            idLower.contains('électroménager') ||
+            idLower.contains('electromenager')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool _hasStandardItemsInCart() {
+    for (final item in _cartItems) {
+      final categoryId = item.categoryId;
+      if (categoryId != null && categoryId.isNotEmpty) {
+        final cat = _categories.firstWhere(
+          (c) => c.id == categoryId,
+          orElse: () => Category(id: '', name: '', description: '', iconName: '', color: '', subCategoryIds: [], createdAt: DateTime.now()),
+        );
+        final nameLower = cat.name.toLowerCase();
+        final idLower = cat.id.toLowerCase();
+        if (!nameLower.contains('électroménager') &&
+            !nameLower.contains('electromenager') &&
+            !idLower.contains('électroménager') &&
+            !idLower.contains('electromenager')) {
+          return true;
+        }
+      } else {
+        return true;
+      }
+    }
+    return false;
+  }
+
     double fee;
+    final hasElectro = _hasElectroMenagerInCart();
+    final hasStandard = _hasStandardItemsInCart();
+
     if (wilayaCode == '06') {
-      // Use the dynamic _bejaiaFee for any location in Bejaia
-      fee = _bejaiaFee;
+      if (hasElectro && hasStandard) {
+        fee = _bejaiaFee + _bejaiaElectroFee;
+      } else if (hasElectro) {
+        fee = _bejaiaElectroFee;
+      } else {
+        fee = _bejaiaFee;
+      }
     } else {
-      fee = _otherWilayaFee;
+      if (hasElectro && hasStandard) {
+        fee = _otherWilayaFee + _otherWilayaElectroFee;
+      } else if (hasElectro) {
+        fee = _otherWilayaElectroFee;
+      } else {
+        fee = _otherWilayaFee;
+      }
     }
 
     final displayWilaya = _wilayaDisplayNames[wilayaCode] ?? context.wilayaName;
@@ -390,8 +450,10 @@ class _CartTabState extends State<CartTab> {
       (prices) {
         if (mounted) {
           setState(() {
-            _bejaiaFee = (prices['bejaiaCityFee'] as num).toDouble();
-            _otherWilayaFee = (prices['otherWilayaFee'] as num).toDouble();
+            _bejaiaFee = ((prices['bejaiaCityFee'] ?? 3.49) as num).toDouble();
+            _otherWilayaFee = ((prices['otherWilayaFee'] ?? 8.99) as num).toDouble();
+            _bejaiaElectroFee = ((prices['bejaiaElectroFee'] ?? 14.99) as num).toDouble();
+            _otherWilayaElectroFee = ((prices['otherWilayaElectroFee'] ?? 24.99) as num).toDouble();
             // Re-calculate fee if address is already selected
             if (_selectedAddress != null) {
               _updateDeliveryContext(_selectedAddress!);

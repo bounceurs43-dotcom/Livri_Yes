@@ -5,10 +5,16 @@ class DeliveryPricesDialog {
   static void show(BuildContext context) async {
     final prices = await RealtimeDatabaseService.getDeliveryPrices();
     final bejaiaController = TextEditingController(
-      text: prices['bejaiaCityFee'].toString(),
+      text: (prices['bejaiaCityFee'] ?? 3.49).toString(),
     );
     final otherController = TextEditingController(
-      text: prices['otherWilayaFee'].toString(),
+      text: (prices['otherWilayaFee'] ?? 8.99).toString(),
+    );
+    final bejaiaElectroController = TextEditingController(
+      text: (prices['bejaiaElectroFee'] ?? 14.99).toString(),
+    );
+    final otherElectroController = TextEditingController(
+      text: (prices['otherWilayaElectroFee'] ?? 24.99).toString(),
     );
 
     if (!context.mounted) return;
@@ -29,40 +35,77 @@ class DeliveryPricesDialog {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: Row(
+              title: const Row(
                 children: [
-                  const Icon(Icons.local_shipping_rounded, color: Colors.red),
-                  const SizedBox(width: 10),
-                  const Text('Prix de livraison'),
+                  Icon(Icons.local_shipping_rounded, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text('Prix de livraison'),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: bejaiaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Prix Béjaïa',
-                      suffixText: 'DA',
-                      border: OutlineInputBorder(),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Livraison Standard :',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: bejaiaController,
+                      decoration: const InputDecoration(
+                        labelText: 'Prix Béjaïa',
+                        suffixText: 'DA',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: otherController,
-                    decoration: const InputDecoration(
-                      labelText: 'Prix Hors Béjaïa',
-                      suffixText: 'DA',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: otherController,
+                      decoration: const InputDecoration(
+                        labelText: 'Prix Hors Béjaïa',
+                        suffixText: 'DA',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Livraison Électroménager :',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.deepOrange),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: bejaiaElectroController,
+                      decoration: const InputDecoration(
+                        labelText: 'Prix Béjaïa Électroménager',
+                        suffixText: 'DA',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: otherElectroController,
+                      decoration: const InputDecoration(
+                        labelText: 'Prix Hors Béjaïa Électroménager',
+                        suffixText: 'DA',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -73,10 +116,15 @@ class DeliveryPricesDialog {
                   onPressed: () async {
                     final bejaiaFee = double.tryParse(bejaiaController.text);
                     final otherFee = double.tryParse(otherController.text);
+                    final bejaiaElectroFee = double.tryParse(bejaiaElectroController.text) ?? 14.99;
+                    final otherElectroFee = double.tryParse(otherElectroController.text) ?? 24.99;
+
                     if (bejaiaFee != null && otherFee != null) {
                       await RealtimeDatabaseService.updateDeliveryPrices(
                         bejaiaFee,
                         otherFee,
+                        bejaiaElectroFee: bejaiaElectroFee,
+                        otherWilayaElectroFee: otherElectroFee,
                       );
                       if (context.mounted) Navigator.pop(context);
                       if (context.mounted) {

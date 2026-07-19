@@ -1017,24 +1017,45 @@ class RealtimeDatabaseService {
   static Future<Map<String, dynamic>> getDeliveryPrices() async {
     try {
       final snapshot = await _settingsRef.child('deliveryPrices').get();
-      if (snapshot.exists) {
-        return Map<String, dynamic>.from(snapshot.value as Map);
+      if (snapshot.exists && snapshot.value is Map) {
+        final data = Map<String, dynamic>.from(snapshot.value as Map);
+        return {
+          'bejaiaCityFee': (data['bejaiaCityFee'] ?? 3.49).toDouble(),
+          'otherWilayaFee': (data['otherWilayaFee'] ?? 8.99).toDouble(),
+          'bejaiaElectroFee': (data['bejaiaElectroFee'] ?? 14.99).toDouble(),
+          'otherWilayaElectroFee': (data['otherWilayaElectroFee'] ?? 24.99).toDouble(),
+        };
       }
-      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+      return {
+        'bejaiaCityFee': 3.49,
+        'otherWilayaFee': 8.99,
+        'bejaiaElectroFee': 14.99,
+        'otherWilayaElectroFee': 24.99,
+      };
     } catch (e) {
       print('Error getting delivery prices: $e');
-      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+      return {
+        'bejaiaCityFee': 3.49,
+        'otherWilayaFee': 8.99,
+        'bejaiaElectroFee': 14.99,
+        'otherWilayaElectroFee': 24.99,
+      };
     }
   }
 
   static Future<void> updateDeliveryPrices(
     double bejaiaFee,
-    double otherFee,
-  ) async {
-    await _settingsRef.child('deliveryPrices').set({
+    double otherFee, {
+    double? bejaiaElectroFee,
+    double? otherWilayaElectroFee,
+  }) async {
+    final Map<String, dynamic> updateData = {
       'bejaiaCityFee': bejaiaFee,
       'otherWilayaFee': otherFee,
       'lastUpdated': ServerValue.timestamp,
-    });
+    };
+    if (bejaiaElectroFee != null) updateData['bejaiaElectroFee'] = bejaiaElectroFee;
+    if (otherWilayaElectroFee != null) updateData['otherWilayaElectroFee'] = otherWilayaElectroFee;
+    await _settingsRef.child('deliveryPrices').set(updateData);
   }
 }

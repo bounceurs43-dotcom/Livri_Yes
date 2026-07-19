@@ -1007,25 +1007,41 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: product.isAvailable
-                              ? AppTheme.successColor.withOpacity(0.1)
-                              : AppTheme.errorColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          product.isAvailable ? 'Disponible' : 'Indisponible',
-                          style: TextStyle(
-                            fontSize: 9,
+                      GestureDetector(
+                        onTap: () async {
+                          final newStatus = !product.isAvailable;
+                          await RealtimeDatabaseService.updateProduct(
+                            product.id,
+                            {'isAvailable': newStatus},
+                          );
+                          _loadData();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
                             color: product.isAvailable
-                                ? AppTheme.successColor
-                                : AppTheme.errorColor,
-                            fontWeight: FontWeight.w600,
+                                ? AppTheme.successColor.withOpacity(0.12)
+                                : AppTheme.errorColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: product.isAvailable
+                                  ? AppTheme.successColor
+                                  : AppTheme.errorColor,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            product.isAvailable ? 'Disponible' : 'Indisponible',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: product.isAvailable
+                                  ? AppTheme.successColor
+                                  : AppTheme.errorColor,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -1611,6 +1627,47 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         activeTrackColor: AppTheme.primaryColor.withOpacity(0.3),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // Availability switch (Disponible / Indisponible)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _isAvailable
+                            ? AppTheme.successColor.withOpacity(0.06)
+                            : AppTheme.errorColor.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: _isAvailable
+                              ? AppTheme.successColor.withOpacity(0.3)
+                              : AppTheme.errorColor.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        value: _isAvailable,
+                        onChanged: (val) {
+                          setState(() {
+                            _isAvailable = val;
+                          });
+                        },
+                        title: Text(
+                          _isAvailable ? 'Produit Disponible ✅' : 'Produit Indisponible 🛑',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isAvailable
+                                ? AppTheme.successColor
+                                : AppTheme.errorColor,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _isAvailable
+                              ? 'Le produit est actif et disponible à l\'achat.'
+                              : 'Le produit sera marqué "Indisponible" et ne pourra pas être commandé.',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        activeColor: AppTheme.successColor,
+                      ),
+                    ),
                     const SizedBox(height: 30),
 
                     // Available Units
@@ -1932,64 +1989,41 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       );
     }
 
-    if (subs.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildSectionHeader('Sous-catégorie'),
-          const SizedBox(height: 16),
-          Lottie.asset(
-            'lib/assets/animations/category_loader.json',
-            height: 120,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Aucune sous-catégorie disponible',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ajoutez-en une depuis la gestion des catégories pour continuer.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const CategoryManagementScreen(),
-                ),
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.primaryColor,
-              side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.4)),
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Créer une sous-catégorie'),
-          ),
-        ],
-      );
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Sous-catégorie'),
+        _buildSectionHeader('Sous-catégorie (Optionnelle)'),
+        const SizedBox(height: 8),
+        Text(
+          'Sélectionnez une sous-catégorie ou choisissez "Aucune" pour rattacher directement à la catégorie.',
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+        ),
         const SizedBox(height: 16),
         Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: subs.map(_buildSubCategoryChip).toList(),
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            ChoiceChip(
+              label: const Text('Aucune (Direct à la catégorie)'),
+              selected: _selectedSubCategory == null,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _selectedSubCategory = null);
+                }
+              },
+              selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+              checkmarkColor: AppTheme.primaryColor,
+              labelStyle: TextStyle(
+                color: _selectedSubCategory == null
+                    ? AppTheme.primaryColor
+                    : AppTheme.textPrimary,
+                fontWeight: _selectedSubCategory == null
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+              ),
+            ),
+            ...subs.map((sub) => _buildSubCategoryChip(sub)),
+          ],
         ),
       ],
     );
