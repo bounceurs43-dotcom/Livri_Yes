@@ -9,10 +9,18 @@ import 'screens/home_page.dart';
 import 'screens/auth_screen.dart';
 import 'screens/update_landing_page.dart';
 import 'theme/app_theme.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Handling background notification in admin: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {

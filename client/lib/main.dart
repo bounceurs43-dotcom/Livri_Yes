@@ -16,7 +16,14 @@ import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
-import 'services/background_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Top-level entry point for background notification messages when app is closed
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Handling background notification: ${message.messageId}');
+}
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +39,7 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Initialize Notifications
     try {

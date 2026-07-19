@@ -199,24 +199,30 @@ class OrdersTabState extends State<OrdersTab>
         if (categoryId == 'Autres') categoryName = 'Autres';
       }
 
+      int itemIndex = 1;
       final itemRows = entry.value.map((item) {
         final name = (item['productName'] ?? 'Produit').toString();
-        final qty = _formatQuantity(item['quantity']);
-        final unit = (item['unit'] ?? '').toString();
-        final itemTotal =
-            _safeToDouble(item['totalPrice'] ?? item['price'] ?? 0);
-        return [
+        final qtyVal = _safeToDouble(item['quantity']);
+        final qtyStr = (qtyVal % 1 == 0) ? qtyVal.toInt().toString() : qtyVal.toStringAsFixed(1);
+        final unit = (item['unit'] ?? item['priceUnit'] ?? '').toString().trim();
+        final quantityLabel = unit.isNotEmpty ? '$qtyStr x $unit' : qtyStr;
+        final unitPrice = _safeToDouble(item['unitPrice'] ?? item['price'] ?? 0);
+        final itemTotal = _safeToDouble(item['totalPrice'] ?? (unitPrice * qtyVal));
+        final row = [
+          '${itemIndex++}',
           name,
-          unit.isNotEmpty ? '$qty $unit' : qty,
+          quantityLabel,
+          formatCurrency(unitPrice),
           formatCurrency(itemTotal),
         ];
+        return row;
       }).toList();
 
       widgets.add(
         pw.Container(
           margin: const pw.EdgeInsets.only(bottom: 6),
           child: pw.Text(
-            categoryName.toUpperCase(),
+            '${categoryName.toUpperCase()} :',
             style: pw.TextStyle(
               font: boldFont,
               fontSize: 12,
@@ -228,7 +234,7 @@ class OrdersTabState extends State<OrdersTab>
 
       widgets.add(
         pw.TableHelper.fromTextArray(
-          headers: ['Produit', 'Quantité', 'Total'],
+          headers: ['N°', 'Nom du produit', 'Quantité', 'Prix unitaire', 'Total'],
           data: itemRows,
           headerDecoration: const pw.BoxDecoration(
             color: PdfColors.deepOrange400,
@@ -239,9 +245,11 @@ class OrdersTabState extends State<OrdersTab>
           ),
           cellAlignment: pw.Alignment.centerLeft,
           columnWidths: {
-            0: const pw.FlexColumnWidth(2.5),
-            1: const pw.FlexColumnWidth(1.2),
+            0: const pw.FlexColumnWidth(0.6),
+            1: const pw.FlexColumnWidth(2.4),
             2: const pw.FlexColumnWidth(1.2),
+            3: const pw.FlexColumnWidth(1.2),
+            4: const pw.FlexColumnWidth(1.2),
           },
         ),
       );
@@ -278,10 +286,11 @@ class OrdersTabState extends State<OrdersTab>
     final cartTotal = _safeToDouble(order['cartTotal']);
     final deliveryFee = _safeToDouble(order['deliveryFee']);
     final expressFee = _safeToDouble(order['expressFee']);
+    final prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee']);
     final tip = _safeToDouble(order['tip']);
     final total = _safeToDouble(order['total']);
 
-    String formatCurrency(double value) => '${value.toString()} €';
+    String formatCurrency(double value) => '${value.toStringAsFixed(2)} €';
 
     doc.addPage(
       pw.MultiPage(
@@ -411,6 +420,14 @@ class OrdersTabState extends State<OrdersTab>
                     children: [
                       pw.Text('Frais de livraison'),
                       pw.Text(formatCurrency(deliveryFee)),
+                    ],
+                  ),
+                if (prepFee > 0)
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Frais de préparation'),
+                      pw.Text(formatCurrency(prepFee)),
                     ],
                   ),
                 if (expressFee > 0)
@@ -2067,12 +2084,34 @@ class OrdersTabState extends State<OrdersTab>
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            '$name ($quantityLabel)',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: isRefunded ? AppTheme.textSecondary : AppTheme.textPrimary,
-                                              decoration: (isRefunded || isPrepared) ? TextDecoration.lineThrough : null,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primaryColor.withOpacity(0.12),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  categoryName.toUpperCase(),
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppTheme.primaryColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  '$name ($quantityLabel)',
+                                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                                    color: isRefunded ? AppTheme.textSecondary : AppTheme.textPrimary,
+                                                    decoration: (isRefunded || isPrepared) ? TextDecoration.lineThrough : null,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           if (isReplaced)
                                             Text(
