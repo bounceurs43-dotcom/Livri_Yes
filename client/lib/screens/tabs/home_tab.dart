@@ -759,180 +759,85 @@ class _HomeTabState extends State<HomeTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Top Header: Delivery Address (left) + Cart Icon (right)
-                        Row(
-                          children: [
-                            // Box 1: Delivery Address
-                            Expanded(
-                              child: Tooltip(
-                                message: _deliveryAddressFull,
-                                child: GestureDetector(
-                                  onTap: _openAddressManager,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: AppTheme.primaryGradient,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.primaryColor
-                                              .withOpacity(0.2),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(
-                                              0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.location_on,
-                                            color: Colors.white,
-                                            size: 16,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                'Adresse',
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withOpacity(0.8),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              Text(
-                                                _deliveryAddressLabel,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.chevron_right_rounded,
-                                          color: Colors.white.withOpacity(0.7),
-                                          size: 16,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                        // Top Header: Delivery Address (Full width)
+                        Tooltip(
+                          message: _deliveryAddressFull,
+                          child: GestureDetector(
+                            onTap: _openAddressManager,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Box 2: Receiver Settings
-                            Expanded(
-                              child: Tooltip(
-                                message: _receiverPhone ?? 'Aucun téléphone',
-                                child: GestureDetector(
-                                  onTap: _openReceiversManager,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.primaryGradient,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryColor
+                                        .withOpacity(0.2),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          const Color.fromARGB(
-                                            255,
-                                            0,
-                                            238,
-                                            255,
-                                          ),
-                                          AppTheme.secondaryColor.withOpacity(
-                                            0.7,
-                                          ),
-                                        ],
+                                      color: Colors.white.withOpacity(
+                                        0.2,
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme.secondaryColor
-                                              .withOpacity(0.2),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
+                                      borderRadius: BorderRadius.circular(
+                                        10,
+                                      ),
                                     ),
-                                    child: Row(
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(
-                                              0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
+                                        Text(
+                                          'Adresse',
+                                          style: TextStyle(
+                                            color: Colors.white
+                                                .withOpacity(0.8),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
                                           ),
-                                          child: const Icon(
-                                            Icons.person_rounded,
+                                        ),
+                                        Text(
+                                          _deliveryAddressLabel,
+                                          style: const TextStyle(
                                             color: Colors.white,
-                                            size: 16,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                'Destinataire',
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withOpacity(0.8),
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              Text(
-                                                _receiverName ?? 'Ajouter',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Icon(
-                                          Icons.add_circle_outline_rounded,
-                                          color: Colors.white.withOpacity(0.7),
-                                          size: 16,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: Colors.white.withOpacity(0.8),
+                                    size: 22,
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ).animate().fade(duration: 300.ms).slideY(begin: -0.1),
                         const SizedBox(height: 10),
 

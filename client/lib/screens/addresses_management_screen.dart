@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/address_service.dart';
+import '../services/city_service.dart';
 import '../theme/app_theme.dart';
-import 'address_picker_screen.dart';
 
 class AddressesManagementScreen extends StatefulWidget {
   const AddressesManagementScreen({super.key});
@@ -64,19 +67,6 @@ class _AddressesManagementScreenState extends State<AddressesManagementScreen> {
     }
   }
 
-  Future<void> _editAddress(Map<String, dynamic> address) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddressPickerScreen(existingAddress: address),
-      ),
-    );
-
-    if (result == true) {
-      await _loadAddresses();
-    }
-  }
-
   Future<void> _deleteAddress(String addressId) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -131,250 +121,588 @@ class _AddressesManagementScreenState extends State<AddressesManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+      backgroundColor: const Color(0xFFF8FAF9),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Navigation Bar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                      color: AppTheme.primaryColor,
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Mes Adresses',
-                        style: Theme.of(context).textTheme.displaySmall
-                            ?.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddressPickerScreen(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mes Adresses',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 26,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_addresses.length} adresses enregistrées',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
                           ),
-                        );
-                        if (result == true) {
-                          await _loadAddresses();
-                        }
-                      },
-                      color: AppTheme.primaryColor,
-                      tooltip: 'Ajouter une adresse',
+                        ),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Annuler'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        elevation: 0,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Expanded(
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _addresses.isEmpty
-                    ? Center(
+                const SizedBox(height: 20),
+
+                // Card: Nouvelle adresse
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: _AddAddressModalForm(
+                    onAddressAdded: _loadAddresses,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Registered Addresses List (if any)
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_addresses.isNotEmpty) ...[
+                  Text(
+                    'Adresses enregistrées',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _addresses.length,
+                    itemBuilder: (context, index) {
+                      final address = _addresses[index];
+                      final isDefault = address['id'] == _defaultAddressId;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDefault
+                                ? AppTheme.primaryColor
+                                : Colors.grey.shade200,
+                            width: isDefault ? 2 : 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
                             children: [
-                              Icon(
-                                Icons.location_off,
-                                size: 64,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Aucune adresse enregistrée',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary,
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: isDefault
+                                      ? AppTheme.primaryColor.withOpacity(0.12)
+                                      : Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.location_on,
+                                  color: isDefault
+                                      ? AppTheme.primaryColor
+                                      : AppTheme.textSecondary,
+                                  size: 20,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Ajoutez une adresse pour commencer',
-                                style: TextStyle(color: AppTheme.textSecondary),
-                              ),
-                              const SizedBox(height: 24),
-                              ElevatedButton.icon(
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const AddressPickerScreen(),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      address['label'] ?? 'Adresse',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isDefault
+                                            ? AppTheme.primaryColor
+                                            : AppTheme.textPrimary,
+                                        fontSize: 15,
+                                      ),
                                     ),
-                                  );
-                                  if (result == true) {
-                                    await _loadAddresses();
-                                  }
-                                },
-                                icon: const Icon(Icons.add),
-                                label: const Text('Ajouter une adresse'),
-                                style: ElevatedButton.styleFrom(
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      address['fullAddress'] ?? '',
+                                      style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (!isDefault)
+                                TextButton(
+                                  onPressed: () => _setAsDefault(
+                                    address['id'],
+                                    address['fullAddress'] ?? '',
+                                  ),
+                                  child: const Text('Choisir'),
+                                )
+                              else
+                                Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 16,
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Active',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
+                                ),
+                                onPressed: () => _deleteAddress(address['id']),
+                                color: AppTheme.errorColor,
                               ),
                             ],
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _addresses.length,
-                        itemBuilder: (context, index) {
-                          final address = _addresses[index];
-                          final isDefault = address['id'] == _defaultAddressId;
-
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isDefault
-                                    ? AppTheme.primaryColor
-                                    : Colors.grey[300]!,
-                                width: isDefault ? 2 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.location_on,
-                                    color: isDefault
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.textSecondary,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          address['label'] ?? 'Adresse',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: isDefault
-                                                ? AppTheme.primaryColor
-                                                : AppTheme.textPrimary,
-                                            fontSize: 15,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          address['fullAddress'] ?? '',
-                                          style: TextStyle(
-                                            color: AppTheme.textSecondary,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          mainAxisSize: MainAxisSize.max,
-                                          children: [
-                                            if (isDefault)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: AppTheme.primaryColor
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  'Par défaut',
-                                                  style: TextStyle(
-                                                    color:
-                                                        AppTheme.primaryColor,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            if (isDefault)
-                                              const SizedBox(width: 8),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.edit_outlined,
-                                                size: 20,
-                                              ),
-                                              onPressed: () =>
-                                                  _editAddress(address),
-                                              tooltip: 'Modifier',
-                                              color: AppTheme.primaryColor,
-                                            ),
-                                            if (!isDefault)
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.check_circle_outline,
-                                                  size: 20,
-                                                ),
-                                                onPressed: () => _setAsDefault(
-                                                  address['id'],
-                                                  address['fullAddress'] ?? '',
-                                                ),
-                                                tooltip: 'Définir par défaut',
-                                              ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                                size: 20,
-                                              ),
-                                              onPressed: () =>
-                                                  _deleteAddress(address['id']),
-                                              tooltip: 'Supprimer',
-                                              color: AppTheme.errorColor,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AddAddressModalForm extends StatefulWidget {
+  final VoidCallback? onAddressAdded;
+
+  const _AddAddressModalForm({this.onAddressAdded});
+
+  @override
+  State<_AddAddressModalForm> createState() => _AddAddressModalFormState();
+}
+
+class _AddAddressModalFormState extends State<_AddAddressModalForm> {
+  final TextEditingController _labelController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController(text: '+213');
+  final TextEditingController _notesController = TextEditingController();
+
+  String? _selectedWilaya;
+  List<String> _allWilayas = [];
+  bool _loadingWilayas = true;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWilayasData();
+  }
+
+  @override
+  void dispose() {
+    _labelController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadWilayasData() async {
+    try {
+      if (!CityService.isLoaded()) {
+        final jsonString = await rootBundle.loadString('lib/data/algeria_cities.json');
+        await CityService.loadCities(jsonString);
+      }
+
+      try {
+        final snap = await FirebaseDatabase.instance.ref('settings/allowedWilayas').get();
+        if (snap.exists) {
+          List<String> codes = [];
+          if (snap.value is List) {
+            codes = (snap.value as List).cast<String>();
+          } else if (snap.value is Map) {
+            codes = (snap.value as Map).values.cast<String>().toList();
+          }
+          CityService.setAllowedWilayas(codes);
+        }
+      } catch (e) {
+        print('Error loading allowed wilayas in form: $e');
+      }
+
+      setState(() {
+        _allWilayas = CityService.getAllWilayas();
+        _loadingWilayas = false;
+      });
+    } catch (e) {
+      print('Error loading wilayas data: $e');
+      setState(() => _loadingWilayas = false);
+    }
+  }
+
+  Future<void> _submitAddress() async {
+    if (_selectedWilaya == null || _selectedWilaya!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner une Wilaya.'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    final phoneText = _phoneController.text.trim();
+    if (phoneText.isNotEmpty && phoneText != '+213') {
+      final sanitized = phoneText.replaceAll('+213', '').replaceAll(' ', '').trim();
+      if (sanitized.length != 9 && sanitized.length != 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Veuillez saisir un numéro de téléphone valide.'),
+            backgroundColor: AppTheme.warningColor,
+          ),
+        );
+        return;
+      }
+    }
+
+    setState(() => _submitting = true);
+
+    try {
+      final label = _labelController.text.trim();
+      final name = _nameController.text.trim();
+      final notes = _notesController.text.trim();
+
+      final fullAddr = notes.isNotEmpty
+          ? '$_selectedWilaya, $notes'
+          : '$_selectedWilaya ${label.isNotEmpty ? "($label)" : ""}';
+
+      final addressData = {
+        'label': label.isNotEmpty ? label : 'Maison',
+        'recipientName': name,
+        'phone': phoneText,
+        'wilaya': _selectedWilaya,
+        'additionalInfo': notes,
+        'fullAddress': fullAddr,
+      };
+
+      final newId = await AddressService.addAddress(addressData);
+      if (newId != null) {
+        await AddressService.setDefaultAddress(newId, fullAddress: fullAddr);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('delivery_address', fullAddr);
+        await prefs.setString(
+          'delivery_address_label',
+          label.isNotEmpty ? label : _selectedWilaya!,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Adresse ajoutée avec succès'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+        widget.onAddressAdded?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWilayaSelector() {
+    if (_loadingWilayas) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _allWilayas.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final wilaya = _allWilayas[index];
+          final isAllowed = CityService.isWilayaAllowed(wilaya);
+          final isSelected = _selectedWilaya == wilaya;
+
+          return ChoiceChip(
+            label: Text(
+              isAllowed ? wilaya : '$wilaya (Bientôt disponible)',
+              style: TextStyle(
+                color: !isAllowed
+                    ? Colors.grey.shade400
+                    : isSelected
+                        ? Colors.white
+                        : AppTheme.textPrimary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+            selected: isSelected,
+            selectedColor: AppTheme.primaryColor,
+            backgroundColor: isAllowed ? const Color(0xFFF5F7FA) : Colors.grey.shade200,
+            disabledColor: Colors.grey.shade200,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: isSelected
+                    ? AppTheme.primaryColor
+                    : Colors.transparent,
+              ),
+            ),
+            onSelected: isAllowed
+                ? (selected) {
+                    setState(() {
+                      _selectedWilaya = selected ? wilaya : null;
+                    });
+                  }
+                : (selected) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'La livraison à $wilaya n\'est pas encore disponible.',
+                        ),
+                        backgroundColor: AppTheme.warningColor,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title Row: Green Pin Icon + Nouvelle adresse
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.location_on,
+                color: AppTheme.primaryColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Nouvelle adresse',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Input 1: Label
+        _buildTextField(
+          controller: _labelController,
+          hintText: 'Label (ex: Maison, Bureau)',
+        ),
+        const SizedBox(height: 12),
+
+        // Input 2: Beneficiary Name
+        _buildTextField(
+          controller: _nameController,
+          hintText: 'Nom et prénom du bénéficiaire',
+        ),
+        const SizedBox(height: 12),
+
+        // Input 3: Phone Number
+        _buildTextField(
+          controller: _phoneController,
+          hintText: 'Téléphone (+213)',
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 16),
+
+        // Section: Wilaya *
+        Row(
+          children: const [
+            Text(
+              'Wilaya ',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            Text(
+              '*',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.errorColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _buildWilayaSelector(),
+        const SizedBox(height: 16),
+
+        // Input 4: Facultative Message (floor, exact address, etc..)
+        _buildTextField(
+          controller: _notesController,
+          hintText: 'Message facultatif (étage, adresse exacte, etc..)',
+          maxLines: 3,
+        ),
+        const SizedBox(height: 20),
+
+        // Submit Button: + Ajouter l'adresse
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _submitting ? null : _submitAddress,
+            icon: _submitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.add, size: 20),
+            label: Text(
+              _submitting ? 'Enregistrement...' : 'Ajouter l\'adresse',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
