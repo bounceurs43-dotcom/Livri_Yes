@@ -928,8 +928,21 @@ class _CartTabState extends State<CartTab> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        ..._buildPreparationFeesWidgets(fontSize: 12, forModal: true),
+                        if (_getTotalPreparationFee() > 0) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Frais de préparation:',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          ..._buildPreparationFeesWidgets(fontSize: 12, forModal: true),
+                        ],
                         if (expressFee > 0) ...[
                           const SizedBox(height: 4),
                           Row(
@@ -1092,59 +1105,71 @@ class _CartTabState extends State<CartTab> {
     }
   }
 
+  Category? _findCategoryForItem(CartItem item) {
+    if (_categories.isEmpty) return null;
+    if (item.categoryId != null && item.categoryId!.isNotEmpty) {
+      try {
+        return _categories.firstWhere((cat) => cat.id == item.categoryId);
+      } catch (_) {}
+    }
+    return null;
+  }
+
   List<Widget> _buildPreparationFeesWidgets({double fontSize = 11, bool forModal = false}) {
     List<Widget> feeWidgets = [];
-    Set<String> categoryIdsInCart = _cartItems.map((item) => item.categoryId).whereType<String>().toSet();
-    
-    for (String id in categoryIdsInCart) {
-      try {
-        final category = _categories.firstWhere((cat) => cat.id == id);
-        if (category.preparationFee > 0) {
-          feeWidgets.add(
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: forModal ? 0 : 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Frais de préparation: ${category.name}',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: fontSize,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _formatPrice(category.preparationFee),
-                    style: TextStyle(
-                      color: forModal ? AppTheme.textPrimary : AppTheme.textSecondary,
-                      fontSize: fontSize,
-                      fontWeight: forModal ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-          if (forModal) feeWidgets.add(const SizedBox(height: 4));
-        }
-      } catch (_) {
-        // Ignored
+    Map<String, Category> categoriesWithFeesInCart = {};
+
+    for (var item in _cartItems) {
+      final category = _findCategoryForItem(item);
+      if (category != null && category.preparationFee > 0) {
+        categoriesWithFeesInCart[category.id] = category;
       }
+    }
+
+    for (var category in categoriesWithFeesInCart.values) {
+      final catName = category.name.toLowerCase();
+      feeWidgets.add(
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: forModal ? 0 : 2, vertical: 1),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$catName:',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: fontSize,
+                  ),
+                ),
+              ),
+              Text(
+                '+${_formatPrice(category.preparationFee)}',
+                style: TextStyle(
+                  color: forModal ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  fontSize: fontSize,
+                  fontWeight: forModal ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (forModal) feeWidgets.add(const SizedBox(height: 2));
     }
     return feeWidgets;
   }
 
   double _getTotalPreparationFee() {
     double total = 0.0;
-    Set<String> categoryIdsInCart = _cartItems.map((item) => item.categoryId).whereType<String>().toSet();
-    for (String id in categoryIdsInCart) {
-      try {
-        final category = _categories.firstWhere((cat) => cat.id == id);
-        total += category.preparationFee;
-      } catch (_) {
-        // Ignored
+    Map<String, Category> categoriesWithFeesInCart = {};
+    for (var item in _cartItems) {
+      final category = _findCategoryForItem(item);
+      if (category != null && category.preparationFee > 0) {
+        categoriesWithFeesInCart[category.id] = category;
       }
+    }
+    for (var category in categoriesWithFeesInCart.values) {
+      total += category.preparationFee;
     }
     return total;
   }
@@ -2227,29 +2252,7 @@ class _CartTabState extends State<CartTab> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Total',
-                                  style: TextStyle(
-                                    color: AppTheme.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                _formatPrice(finalTotal),
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
+                          // 1. Dont livraison
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: Row(
@@ -2274,7 +2277,46 @@ class _CartTabState extends State<CartTab> {
                               ],
                             ),
                           ),
-                          ..._buildPreparationFeesWidgets(),
+                          // 2. Frais de préparation
+                          if (_getTotalPreparationFee() > 0) ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Text(
+                                'Frais de préparation:',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            ..._buildPreparationFeesWidgets(),
+                          ],
+                          const SizedBox(height: 6),
+                          // 3. Total at bottom
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatPrice(finalTotal),
+                                style: TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                           if (hasTip)
                             Padding(
                               padding: const EdgeInsets.symmetric(

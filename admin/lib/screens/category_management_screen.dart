@@ -276,6 +276,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 'createdAt':
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
+                'order': categoryData['order'] ?? 0,
+                'preparationFee': categoryData['preparationFee'] ?? 0.0,
               }),
             );
           } catch (e) {
@@ -1790,10 +1792,22 @@ class _CategoryCardState extends State<_CategoryCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 8),
-                          infoPill(
-                            subLabel,
-                            background: Colors.white.withOpacity(0.24),
-                            foreground: Colors.white,
+                          Row(
+                            children: [
+                              infoPill(
+                                subLabel,
+                                background: Colors.white.withOpacity(0.24),
+                                foreground: Colors.white,
+                              ),
+                              if (widget.category.preparationFee > 0) ...[
+                                const SizedBox(width: 6),
+                                infoPill(
+                                  'Frais: ${widget.category.preparationFee}',
+                                  background: Colors.amber.withOpacity(0.9),
+                                  foreground: Colors.black,
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
