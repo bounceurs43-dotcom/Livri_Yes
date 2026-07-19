@@ -1040,6 +1040,22 @@ class OrdersTabState extends State<OrdersTab>
   }
 
   String _resolveDeliveryLabel(Map<String, dynamic> order) {
+    final commune = _resolveStringCandidate(order['commune']);
+    final wilaya = _resolveStringCandidate(order['wilaya']);
+    if (commune != null && wilaya != null) {
+      return '$commune, $wilaya';
+    }
+    if (wilaya != null) {
+      return wilaya;
+    }
+
+    final address =
+        _resolveStringCandidate(order['deliveryAddress'] ?? order['address']) ??
+        '';
+    if (address.isNotEmpty && !_looksLikeCoordinates(address)) {
+      return address;
+    }
+
     final candidates = [
       order['deliveryLabel'],
       order['addressLabel'],
@@ -1054,25 +1070,159 @@ class OrdersTabState extends State<OrdersTab>
       }
     }
 
-    final address =
-        _resolveStringCandidate(order['deliveryAddress'] ?? order['address']) ??
-        '';
-    if (address.isNotEmpty && !_looksLikeCoordinates(address)) {
-      return address;
-    }
-
-    final commune = _resolveStringCandidate(order['commune']);
-    final wilaya = _resolveStringCandidate(order['wilaya']);
-    if (commune != null && wilaya != null) {
-      return '$commune, $wilaya';
-    }
-    if (wilaya != null) {
-      return 'Livraison - $wilaya';
-    }
     if (address.isNotEmpty && _looksLikeCoordinates(address)) {
       return 'Position partagée';
     }
     return 'Adresse non renseignée';
+  }
+
+  Widget _buildCopyableRow(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                SelectableText(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy_rounded, size: 18, color: AppTheme.primaryColor),
+            tooltip: 'Copier',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Copié dans le presse-papier : $value'),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: AppTheme.successColor,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocationDetailsModal(Map<String, dynamic> order) {
+    final wilaya = _resolveStringCandidate(order['wilaya']) ?? 'Non renseignée';
+    final commune = _resolveStringCandidate(order['commune']) ?? 'Non renseignée';
+    final fullAddress = (order['deliveryAddress'] ?? order['fullAddress'] ?? order['address'] ?? 'Non renseignée').toString();
+    final addressLabel = _resolveStringCandidate(order['deliveryLabel'] ?? order['addressLabel']);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.location_on_rounded, color: AppTheme.primaryColor, size: 26),
+            const SizedBox(width: 10),
+            const Text('Lieu de livraison', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (addressLabel != null && addressLabel.isNotEmpty) ...[
+              _buildCopyableRow('Libellé adresse', addressLabel),
+              const SizedBox(height: 8),
+            ],
+            _buildCopyableRow('Wilaya', wilaya),
+            const SizedBox(height: 8),
+            _buildCopyableRow('Commune', commune),
+            const SizedBox(height: 8),
+            _buildCopyableRow('Adresse exacte', fullAddress),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openMap(fullAddress);
+            },
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Ouvrir Maps'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showClientInfoModal(Map<String, dynamic> order) {
+    final customerName = _resolveCustomerName(order);
+    final fallbackPhone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni').toString();
+    final phone = _resolveCustomerPhone(order, fallback: fallbackPhone) ?? 'Non fourni';
+    final email = _resolveCustomerEmail(order) ?? 'Non renseigné';
+    final receiverName = (order['receiverName'] ?? '').toString().trim();
+    final receiverPhone = (order['receiverPhone'] ?? '').toString().trim();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.person_rounded, color: AppTheme.primaryColor, size: 26),
+            const SizedBox(width: 10),
+            const Text('Informations du client', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCopyableRow('Nom du client', customerName),
+            const SizedBox(height: 8),
+            _buildCopyableRow('Téléphone', phone),
+            const SizedBox(height: 8),
+            _buildCopyableRow('Email / Compte', email),
+            if (receiverName.isNotEmpty || receiverPhone.isNotEmpty) ...[
+              const Divider(height: 18),
+              Text('Destinataire', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor, fontSize: 12)),
+              const SizedBox(height: 6),
+              if (receiverName.isNotEmpty) _buildCopyableRow('Nom destinataire', receiverName),
+              if (receiverPhone.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _buildCopyableRow('Tél. destinataire', receiverPhone),
+              ],
+            ],
+          ],
+        ),
+        actions: [
+          if (phone != 'Non fourni')
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _makePhoneCall(phone);
+              },
+              icon: const Icon(Icons.phone_outlined),
+              label: const Text('Appeler'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAvatar(String name, {String? photoUrl, double size = 26}) {
@@ -1806,20 +1956,33 @@ class OrdersTabState extends State<OrdersTab>
                               ],
                             ),
                             const SizedBox(height: 18),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                _buildInfoChip(Icons.calendar_today_outlined, formattedDate, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
-                                _buildInfoChip(Icons.location_on_outlined, deliveryLabel, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
-                                if (hasReceiver) _buildInfoChip(Icons.person_outline_rounded, receiverLabel, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
-                                _buildInfoChip(Icons.mail_outline_rounded, displayEmail, textColor: emailLabel.isEmpty ? AppTheme.warningColor : AppTheme.textPrimary, backgroundColor: emailLabel.isEmpty ? AppTheme.warningColor.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.9)),
-                                _buildInfoChip(Icons.phone_rounded, displayPhone, textColor: canCallClient ? AppTheme.textPrimary : AppTheme.textSecondary, backgroundColor: canCallClient ? Colors.white.withValues(alpha: 0.9) : AppTheme.textLight.withValues(alpha: 0.32)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                             Wrap(
+                               spacing: 10,
+                               runSpacing: 10,
+                               children: [
+                                 _buildInfoChip(Icons.calendar_today_outlined, formattedDate, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
+                                 GestureDetector(
+                                   onTap: () => _showLocationDetailsModal(order),
+                                   child: _buildInfoChip(Icons.location_on_outlined, deliveryLabel, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
+                                 ),
+                                 if (hasReceiver)
+                                   GestureDetector(
+                                     onTap: () => _showClientInfoModal(order),
+                                     child: _buildInfoChip(Icons.person_outline_rounded, receiverLabel, textColor: AppTheme.textPrimary, backgroundColor: Colors.white.withValues(alpha: 0.85)),
+                                   ),
+                                 GestureDetector(
+                                   onTap: () => _showClientInfoModal(order),
+                                   child: _buildInfoChip(Icons.mail_outline_rounded, displayEmail, textColor: emailLabel.isEmpty ? AppTheme.warningColor : AppTheme.textPrimary, backgroundColor: emailLabel.isEmpty ? AppTheme.warningColor.withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.9)),
+                                 ),
+                                 GestureDetector(
+                                   onTap: () => _showClientInfoModal(order),
+                                   child: _buildInfoChip(Icons.phone_rounded, displayPhone, textColor: canCallClient ? AppTheme.textPrimary : AppTheme.textSecondary, backgroundColor: canCallClient ? Colors.white.withValues(alpha: 0.9) : AppTheme.textLight.withValues(alpha: 0.32)),
+                                 ),
+                               ],
+                             ),
+                           ],
+                         ),
+                       ),
                       const SizedBox(height: 28),
                       Text('Produits', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
                       (() {
@@ -1859,34 +2022,47 @@ class OrdersTabState extends State<OrdersTab>
                           );
 
                           for (var item in entry.value) {
-                            final name = (item['productName'] ?? 'Produit').toString();
-                            final qty = _formatQuantity(item['quantity']);
-                            final unit = (item['unit'] ?? '').toString();
-                            final totalItem = _safeToDouble(item['totalPrice'] ?? item['price'] ?? 0);
-                            final quantityLabel = unit.isEmpty ? qty : '$qty $unit';
-                            final isRefunded = item['status'] == 'refunded';
-                            final isReplaced = item['isReplaced'] == true;
-                            final isPrepared = item['isPrepared'] == true;
+                             final name = (item['productName'] ?? 'Produit').toString();
+                             final qty = _formatQuantity(item['quantity']);
+                             final unit = (item['unit'] ?? item['priceUnit'] ?? '').toString().trim();
+                             final totalItem = _safeToDouble(item['totalPrice'] ?? item['price'] ?? 0);
+                             final quantityLabel = unit.isEmpty ? qty : '$qty x $unit';
+                             final isRefunded = item['status'] == 'refunded';
+                             final isReplaced = item['isReplaced'] == true;
+                             final isPrepared = item['isPrepared'] == true;
 
-                            groupedWidgets.add(
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  children: [
-                                    Checkbox(
-                                      value: isPrepared,
-                                      activeColor: AppTheme.successColor,
-                                      onChanged: (val) async {
-                                        if (val == null) return;
-                                        item['isPrepared'] = val;
-                                        setDialogState(() {});
-                                        await _toggleItemPreparation(
-                                          (order['id'] ?? order['key']).toString(),
-                                          item,
-                                          val,
-                                        );
-                                      },
-                                    ),
+                             groupedWidgets.add(
+                               Padding(
+                                 padding: const EdgeInsets.only(bottom: 8),
+                                 child: Row(
+                                   children: [
+                                     Checkbox(
+                                       value: isPrepared,
+                                       activeColor: AppTheme.successColor,
+                                       onChanged: (val) async {
+                                         if (val == null) return;
+                                         item['isPrepared'] = val;
+                                         final rawItems = order['items'];
+                                         if (rawItems is List) {
+                                           for (var i in rawItems) {
+                                             if (i is Map) {
+                                               final itemId = i['productId'] ?? i['id'];
+                                               final tId = item['productId'] ?? item['id'];
+                                               if (itemId == tId) {
+                                                 i['isPrepared'] = val;
+                                                 break;
+                                               }
+                                             }
+                                           }
+                                         }
+                                         setDialogState(() {});
+                                         await _toggleItemPreparation(
+                                           (order['id'] ?? order['key'] ?? order['orderId']).toString(),
+                                           item,
+                                           val,
+                                         );
+                                       },
+                                     ),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1953,12 +2129,20 @@ class OrdersTabState extends State<OrdersTab>
                         );
                       }()),
                       const Divider(),
-                      _buildDetailRow('Sous-total', '${cartTotal.toStringAsFixed(2)} €'),
-                      if (deliveryFee > 0) _buildDetailRow('Frais de livraison', '${deliveryFee.toStringAsFixed(2)} €'),
-                      if (expressFee > 0) _buildDetailRow('Livraison express', '${expressFee.toStringAsFixed(2)} €'),
-                      if (tip > 0) _buildDetailRow('Pourboire', '${tip.toStringAsFixed(2)} €'),
-                      const Divider(),
-                      _buildDetailRow('Total encaissé', '${total.toStringAsFixed(2)} €', isTotal: true),
+                       (() {
+                         final prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee']);
+                         return Column(
+                           children: [
+                             _buildDetailRow('Sous-total', '${cartTotal.toStringAsFixed(2)} €'),
+                             if (deliveryFee > 0) _buildDetailRow('Frais de livraison', '${deliveryFee.toStringAsFixed(2)} €'),
+                             if (prepFee > 0) _buildDetailRow('Frais de préparation', '${prepFee.toStringAsFixed(2)} €'),
+                             if (expressFee > 0) _buildDetailRow('Livraison express', '${expressFee.toStringAsFixed(2)} €'),
+                             if (tip > 0) _buildDetailRow('Pourboire', '${tip.toStringAsFixed(2)} €'),
+                             const Divider(),
+                             _buildDetailRow('Total encaissé', '${total.toStringAsFixed(2)} €', isTotal: true),
+                           ],
+                         );
+                       }()),
                       const SizedBox(height: 20),
                       
                       if (order['notes'] != null && order['notes'].toString().trim().isNotEmpty)
@@ -2824,18 +3008,27 @@ class OrdersTabState extends State<OrdersTab>
                               spacing: 8,
                               runSpacing: 8,
                               children: [
-                                _buildClientChip(
-                                  customerName,
-                                  photoUrl: customerPhoto,
+                                GestureDetector(
+                                  onTap: () => _showClientInfoModal(order),
+                                  child: _buildClientChip(
+                                    customerName,
+                                    photoUrl: customerPhoto,
+                                  ),
                                 ),
-                                _buildInfoChip(
-                                  Icons.location_on_outlined,
-                                  deliveryLabel,
+                                GestureDetector(
+                                  onTap: () => _showLocationDetailsModal(order),
+                                  child: _buildInfoChip(
+                                    Icons.location_on_outlined,
+                                    deliveryLabel,
+                                  ),
                                 ),
                                 if (hasReceiver)
-                                  _buildInfoChip(
-                                    Icons.person_outline_rounded,
-                                    receiverLabel,
+                                  GestureDetector(
+                                    onTap: () => _showClientInfoModal(order),
+                                    child: _buildInfoChip(
+                                      Icons.person_outline_rounded,
+                                      receiverLabel,
+                                    ),
                                   ),
                                 _buildInfoChip(
                                   order['unavailabilityPolicy'] == 'replacement' 
