@@ -494,6 +494,9 @@ class _CartTabState extends State<CartTab> {
         setState(() {
           _cartItems = items;
           _refreshExpressSelection();
+          if (_selectedAddress != null) {
+            _updateDeliveryContext(_selectedAddress!);
+          }
         });
       }
     });
@@ -803,6 +806,9 @@ class _CartTabState extends State<CartTab> {
     setState(() {
       _cartItems = _cartItems.where((item) => item.id != itemId).toList();
       _refreshExpressSelection();
+      if (_selectedAddress != null) {
+        _updateDeliveryContext(_selectedAddress!);
+      }
     });
 
     try {
@@ -816,7 +822,12 @@ class _CartTabState extends State<CartTab> {
         );
       }
     } catch (e) {
-      setState(() => _cartItems = previousItems);
+      setState(() {
+        _cartItems = previousItems;
+        if (_selectedAddress != null) {
+          _updateDeliveryContext(_selectedAddress!);
+        }
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1222,28 +1233,107 @@ class _CartTabState extends State<CartTab> {
 
   Category? _findCategoryForItem(CartItem item) {
     if (_categories.isEmpty) return null;
-    if (item.categoryId != null && item.categoryId!.isNotEmpty) {
-      try {
-        return _categories.firstWhere((cat) => cat.id == item.categoryId);
-      } catch (_) {}
-      try {
-        return _categories.firstWhere((cat) => cat.subCategoryIds.contains(item.categoryId));
-      } catch (_) {}
-    }
-    if (item.categoryName != null && item.categoryName!.isNotEmpty) {
-      try {
-        return _categories.firstWhere((cat) => cat.name.toLowerCase() == item.categoryName!.toLowerCase());
-      } catch (_) {}
-    }
-    final nameLower = item.productName.toLowerCase();
-    for (var cat in _categories) {
-      final cName = cat.name.toLowerCase();
-      if ((cName.contains('viande') && (nameLower.contains('boeuf') || nameLower.contains('bœuf') || nameLower.contains('poulet') || nameLower.contains('viande') || nameLower.contains('escalope'))) ||
-          (cName.contains('fruit') && (nameLower.contains('nectarine') || nameLower.contains('pomme') || nameLower.contains('banane') || nameLower.contains('orange'))) ||
-          ((cName.contains('superette') || cName.contains('supérette')) && (nameLower.contains('coca') || nameLower.contains('jus') || nameLower.contains('lait') || nameLower.contains('sucre') || nameLower.contains('piment')))) {
-        return cat;
+
+    final itemCatId = item.categoryId?.trim() ?? '';
+    final itemCatName = item.categoryName?.trim().toLowerCase() ?? '';
+    final pName = item.productName.toLowerCase();
+
+    // 1. Direct ID or SubCategory ID match
+    if (itemCatId.isNotEmpty) {
+      for (var cat in _categories) {
+        if (cat.id == itemCatId || cat.subCategoryIds.contains(itemCatId)) {
+          return cat;
+        }
       }
     }
+
+    // 2. Direct Category Name match (exact, lowercased, or normalized)
+    if (itemCatName.isNotEmpty) {
+      for (var cat in _categories) {
+        final cName = cat.name.trim().toLowerCase();
+        if (cName == itemCatName ||
+            cName.replaceAll('&', 'et') == itemCatName.replaceAll('&', 'et') ||
+            cName.contains(itemCatName) ||
+            itemCatName.contains(cName)) {
+          return cat;
+        }
+      }
+    }
+
+    // 3. Robust Keyword Fallback for Smartphones, Meat, Fruits, Supérette, etc.
+    for (var cat in _categories) {
+      final cName = cat.name.trim().toLowerCase();
+      final cId = cat.id.trim().toLowerCase();
+
+      // Phones & Tablets (smartphones, téléphone, mobile, etc.)
+      if (cName.contains('phone') ||
+          cName.contains('téléphone') ||
+          cName.contains('telephone') ||
+          cName.contains('tablette') ||
+          cName.contains('électronique') ||
+          cName.contains('electronique') ||
+          cId.contains('phone')) {
+        if (itemCatName.contains('phone') ||
+            itemCatName.contains('tablette') ||
+            pName.contains('phone') ||
+            pName.contains('iphone') ||
+            pName.contains('galaxy') ||
+            pName.contains('redmi') ||
+            pName.contains('xiaomi') ||
+            pName.contains('samsung') ||
+            pName.contains('oppo') ||
+            pName.contains('realme') ||
+            pName.contains('huawei') ||
+            pName.contains('tablette') ||
+            pName.contains('ipad')) {
+          return cat;
+        }
+      }
+
+      // Meat / Viande
+      if (cName.contains('viande')) {
+        if (itemCatName.contains('viande') ||
+            pName.contains('boeuf') ||
+            pName.contains('bœuf') ||
+            pName.contains('poulet') ||
+            pName.contains('viande') ||
+            pName.contains('escalope') ||
+            pName.contains('kefta')) {
+          return cat;
+        }
+      }
+
+      // Fruits & Vegetables
+      if (cName.contains('fruit') || cName.contains('légume') || cName.contains('legume')) {
+        if (itemCatName.contains('fruit') ||
+            itemCatName.contains('légume') ||
+            pName.contains('nectarine') ||
+            pName.contains('pomme') ||
+            pName.contains('banane') ||
+            pName.contains('orange') ||
+            pName.contains('fraise') ||
+            pName.contains('tomate') ||
+            pName.contains('pomme de terre')) {
+          return cat;
+        }
+      }
+
+      // Supérette / Grocery
+      if (cName.contains('superette') || cName.contains('supérette') || cName.contains('market')) {
+        if (itemCatName.contains('superette') ||
+            itemCatName.contains('market') ||
+            pName.contains('coca') ||
+            pName.contains('jus') ||
+            pName.contains('lait') ||
+            pName.contains('sucre') ||
+            pName.contains('piment') ||
+            pName.contains('eau') ||
+            pName.contains('huile')) {
+          return cat;
+        }
+      }
+    }
+
     return null;
   }
 
