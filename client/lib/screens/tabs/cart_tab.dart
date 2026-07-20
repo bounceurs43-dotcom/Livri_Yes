@@ -1540,6 +1540,40 @@ class _CartTabState extends State<CartTab> {
               ),
               const SizedBox(height: 24),
               
+              // Google Pay Option
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 54),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                onPressed: () {
+                  Navigator.pop(context); // Close BottomSheet
+                  _processPayment('stripe');
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.network(
+                      'https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_%28GPay%29_Logo.svg',
+                      height: 22,
+                      color: Colors.white,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet, size: 24, color: Colors.white),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Google Pay',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // PayPal Option
               if (_isPayPalConfigured) ...[
                 ElevatedButton(
@@ -1578,7 +1612,7 @@ class _CartTabState extends State<CartTab> {
               // Stripe Card Option
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black, // Stripe Dark
+                  backgroundColor: const Color(0xFF10AA2E), // Primary Theme Green
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(

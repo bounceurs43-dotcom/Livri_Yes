@@ -194,7 +194,7 @@ class _StripeCheckoutScreenState extends State<StripeCheckoutScreen> {
         body: {
           'amount': amountInCents,
           'currency': 'eur',
-          'payment_method_types[0]': 'card',
+          'automatic_payment_methods[enabled]': 'true',
         },
       );
 
