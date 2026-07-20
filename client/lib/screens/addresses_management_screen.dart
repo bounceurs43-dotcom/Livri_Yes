@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 import '../services/address_service.dart';
 import '../services/city_service.dart';
 import '../theme/app_theme.dart';
@@ -354,6 +358,7 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   List<String> _allWilayas = [];
   bool _loadingWilayas = true;
   bool _submitting = false;
+  bool _fetchingGps = false;
 
   @override
   void initState() {
@@ -393,12 +398,111 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       }
 
       setState(() {
-        _allWilayas = CityService.getAllWilayas();
+        _allWilayas = CityService.getWilayas();
+        if (_allWilayas.isNotEmpty && _selectedWilaya == null) {
+          _selectedWilaya = _allWilayas.first;
+        }
         _loadingWilayas = false;
       });
     } catch (e) {
       print('Error loading wilayas data: $e');
       setState(() => _loadingWilayas = false);
+    }
+  }
+
+  Future<void> _fillAddressFromGps() async {
+    setState(() => _fetchingGps = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Veuillez activer les services de localisation (GPS).');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Permission de localisation refusée.');
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Permission de localisation refusée définitivement. Activez-la dans les paramètres.');
+      }
+
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      String? detectedAddress;
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json&addressdetails=1',
+        );
+        final response = await http.get(url, headers: {'User-Agent': 'LivriYesApp'}).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data is Map && data.containsKey('display_name')) {
+            detectedAddress = data['display_name']?.toString();
+          }
+        }
+      } catch (_) {}
+
+      if (detectedAddress == null || detectedAddress.isEmpty) {
+        try {
+          List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+          if (placemarks.isNotEmpty) {
+            final p = placemarks.first;
+            final parts = <String>[];
+            if (p.street != null && p.street!.trim().isNotEmpty) parts.add(p.street!.trim());
+            if (p.subLocality != null && p.subLocality!.trim().isNotEmpty) parts.add(p.subLocality!.trim());
+            if (p.locality != null && p.locality!.trim().isNotEmpty) parts.add(p.locality!.trim());
+            if (p.administrativeArea != null && p.administrativeArea!.trim().isNotEmpty) parts.add(p.administrativeArea!.trim());
+            if (p.country != null && p.country!.trim().isNotEmpty) parts.add(p.country!.trim());
+            if (parts.isNotEmpty) {
+              detectedAddress = parts.join(', ');
+            }
+          }
+        } catch (_) {}
+      }
+
+      detectedAddress ??= '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
+
+      setState(() {
+        _notesController.text = detectedAddress!;
+      });
+
+      if (_allWilayas.isNotEmpty) {
+        for (final w in _allWilayas) {
+          if (detectedAddress.toLowerCase().contains(w.toLowerCase())) {
+            setState(() {
+              _selectedWilaya = w;
+            });
+            break;
+          }
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Position GPS récupérée avec succès!'),
+            backgroundColor: AppTheme.successColor,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fetchingGps = false);
     }
   }
 
@@ -521,6 +625,16 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       );
     }
 
+    if (_allWilayas.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Aucune wilaya disponible pour le moment.',
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 48,
       child: ListView.separated(
@@ -529,51 +643,31 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final wilaya = _allWilayas[index];
-          final isAllowed = CityService.isWilayaAllowed(wilaya);
           final isSelected = _selectedWilaya == wilaya;
 
           return ChoiceChip(
             label: Text(
-              isAllowed ? wilaya : '$wilaya (Bientôt disponible)',
+              wilaya,
               style: TextStyle(
-                color: !isAllowed
-                    ? Colors.grey.shade400
-                    : isSelected
-                        ? Colors.white
-                        : AppTheme.textPrimary,
+                color: isSelected ? Colors.white : AppTheme.textPrimary,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 13,
               ),
             ),
             selected: isSelected,
             selectedColor: AppTheme.primaryColor,
-            backgroundColor: isAllowed ? const Color(0xFFF5F7FA) : Colors.grey.shade200,
-            disabledColor: Colors.grey.shade200,
+            backgroundColor: const Color(0xFFF5F7FA),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(
-                color: isSelected
-                    ? AppTheme.primaryColor
-                    : Colors.transparent,
+                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
               ),
             ),
-            onSelected: isAllowed
-                ? (selected) {
-                    setState(() {
-                      _selectedWilaya = selected ? wilaya : null;
-                    });
-                  }
-                : (selected) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'La livraison à $wilaya n\'est pas encore disponible.',
-                        ),
-                        backgroundColor: AppTheme.warningColor,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
+            onSelected: (selected) {
+              setState(() {
+                _selectedWilaya = selected ? wilaya : null;
+              });
+            },
           );
         },
       ),
@@ -661,7 +755,49 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
         _buildWilayaSelector(),
         const SizedBox(height: 16),
 
-        // Input 4: Facultative Message (floor, exact address, etc..)
+        // GPS Action Button
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: InkWell(
+              onTap: _fetchingGps ? null : _fillAddressFromGps,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_fetchingGps)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor),
+                      )
+                    else
+                      const Icon(Icons.my_location, size: 16, color: AppTheme.primaryColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      _fetchingGps ? 'Localisation en cours...' : '📍 Obtenir adresse GPS',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Input 4: Message facultatif (étage, adresse exacte, etc..)
         _buildTextField(
           controller: _notesController,
           hintText: 'Message facultatif (étage, adresse exacte, etc..)',

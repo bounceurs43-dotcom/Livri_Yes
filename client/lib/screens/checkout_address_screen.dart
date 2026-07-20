@@ -271,38 +271,20 @@ class _CheckoutAddressScreenState extends State<CheckoutAddressScreen> {
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         items: _wilayas.map((w) {
-                          final isAllowed = CityService.isWilayaAllowed(w);
                           return DropdownMenuItem(
                             value: w,
-                            enabled: isAllowed,
-                            child: Row(
-                              children: [
-                                Text(
-                                  w,
-                                  style: TextStyle(
-                                    color: isAllowed ? Colors.black : Colors.grey,
-                                  ),
-                                ),
-                                if (!isAllowed) ...[
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    '(Bientôt disponible.)',
-                                    style: TextStyle(color: Colors.red, fontSize: 12),
-                                  ),
-                                ],
-                              ],
+                            child: Text(
+                              w,
+                              style: const TextStyle(color: Colors.black),
                             ),
                           );
                         }).toList(),
                         validator: (val) {
                           if (val == null) return "Veuillez sélectionner une wilaya";
-                          if (!CityService.isWilayaAllowed(val)) {
-                            return "Cette wilaya n'est pas encore disponible pour la livraison";
-                          }
                           return null;
                         },
                         onChanged: (val) {
-                          if (val != null && CityService.isWilayaAllowed(val)) {
+                          if (val != null) {
                             setState(() {
                               _selectedWilaya = val;
                               _communes = CityService.getCommunesForWilaya(val);

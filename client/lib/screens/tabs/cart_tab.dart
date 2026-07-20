@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -1542,16 +1543,17 @@ class _CartTabState extends State<CartTab> {
               ),
               const SizedBox(height: 24),
               
-              // Google Pay Option
+              // Google Pay Option (GPay logo pill format matching Image 2)
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF3C4043),
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(27),
+                    side: const BorderSide(color: Color(0xFF3C4043), width: 1.5),
                   ),
-                  elevation: 2,
+                  elevation: 1,
                 ),
                 onPressed: () {
                   Navigator.pop(context); // Close BottomSheet
@@ -1560,16 +1562,20 @@ class _CartTabState extends State<CartTab> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_%28GPay%29_Logo.svg',
-                      height: 22,
-                      color: Colors.white,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.account_balance_wallet, size: 24, color: Colors.white),
+                    SvgPicture.string(
+                      '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.66 0 6.6 5.38 2.69 13.22l7.98 6.19C12.63 13.7 17.81 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.67 28.59c-.48-1.45-.76-2.99-.76-4.59s.28-3.14.76-4.59l-7.98-6.19C1.03 16.29 0 19.99 0 24s1.03 7.71 2.69 10.78l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.19 0-11.37-4.2-13.33-9.91l-7.98 6.19C6.6 42.62 14.66 48 24 48z"/></svg>''',
+                      height: 24,
+                      width: 24,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 6),
                     const Text(
-                      'Google Pay',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      'Pay',
+                      style: TextStyle(
+                        color: Color(0xFF3C4043),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                   ],
                 ),
