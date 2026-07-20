@@ -170,6 +170,106 @@ class OrdersTabState extends State<OrdersTab>
     }
   }
 
+  String _resolveItemCategoryName(Map<String, dynamic> item) {
+    final directCatName = (item['categoryName'] ?? item['category'])?.toString().trim();
+    if (directCatName != null && directCatName.isNotEmpty && directCatName != 'Autres') {
+      return directCatName;
+    }
+
+    final rawCatId = (item['categoryId'] ?? item['category_id'])?.toString().trim();
+    if (rawCatId != null && rawCatId.isNotEmpty && rawCatId != 'Autres') {
+      for (final cat in _categories) {
+        if (cat.id == rawCatId || cat.name.toLowerCase() == rawCatId.toLowerCase()) {
+          return cat.name;
+        }
+      }
+      for (final cat in _categories) {
+        if (cat.subCategoryIds.contains(rawCatId)) {
+          return cat.name;
+        }
+      }
+    }
+
+    final productName = (item['productName'] ?? item['name'] ?? '').toString().trim().toLowerCase();
+
+    if (productName.contains('coca') ||
+        productName.contains('pepsi') ||
+        productName.contains('jus') ||
+        productName.contains('eau') ||
+        productName.contains('lait') ||
+        productName.contains('sucre') ||
+        productName.contains('piment') ||
+        productName.contains('cafe') ||
+        productName.contains('café') ||
+        productName.contains('farine') ||
+        productName.contains('huile') ||
+        productName.contains('riz') ||
+        productName.contains('pâte') ||
+        productName.contains('couscous') ||
+        productName.contains('boisson')) {
+      for (final cat in _categories) {
+        final n = cat.name.toLowerCase();
+        if (n.contains('superette') || n.contains('supérette') || n.contains('alimentation')) {
+          return cat.name;
+        }
+      }
+      return 'Supérette';
+    }
+
+    if (productName.contains('boeuf') ||
+        productName.contains('bœuf') ||
+        productName.contains('poulet') ||
+        productName.contains('viande') ||
+        productName.contains('escalope') ||
+        productName.contains('agneau') ||
+        productName.contains('filet')) {
+      for (final cat in _categories) {
+        if (cat.name.toLowerCase().contains('viande')) {
+          return cat.name;
+        }
+      }
+      return 'Viande';
+    }
+
+    if (productName.contains('pomme') ||
+        productName.contains('banane') ||
+        productName.contains('orange') ||
+        productName.contains('nectarine') ||
+        productName.contains('fraise') ||
+        productName.contains('citron') ||
+        productName.contains('raisin') ||
+        productName.contains('poire')) {
+      for (final cat in _categories) {
+        if (cat.name.toLowerCase().contains('fruit')) {
+          return cat.name;
+        }
+      }
+      return 'Fruits';
+    }
+
+    if (productName.contains('tomate') ||
+        productName.contains('oignon') ||
+        productName.contains('pomme de terre') ||
+        productName.contains('carotte') ||
+        productName.contains('salade') ||
+        productName.contains('poivron') ||
+        productName.contains('courgette')) {
+      for (final cat in _categories) {
+        final n = cat.name.toLowerCase();
+        if (n.contains('légume') || n.contains('legume')) {
+          return cat.name;
+        }
+      }
+      return 'Légumes';
+    }
+
+    if (rawCatId != null && rawCatId.isNotEmpty && rawCatId != 'Autres') {
+      return rawCatId;
+    }
+
+    return 'Autres';
+  }
+
   List<pw.Widget> _buildGroupedItemsPdf(
     List<Map<String, dynamic>> items,
     pw.Font boldFont,
@@ -177,27 +277,20 @@ class OrdersTabState extends State<OrdersTab>
   ) {
     if (items.isEmpty) return [];
 
-    // Group items by categoryId
+    // Group items by resolved category name
     Map<String, List<Map<String, dynamic>>> grouped = {};
     for (var item in items) {
-      String categoryId = (item['categoryId'] ?? 'Autres').toString();
-      if (!grouped.containsKey(categoryId)) {
-        grouped[categoryId] = [];
+      String categoryName = _resolveItemCategoryName(item);
+      if (!grouped.containsKey(categoryName)) {
+        grouped[categoryName] = [];
       }
-      grouped[categoryId]!.add(item);
+      grouped[categoryName]!.add(item);
     }
 
     List<pw.Widget> widgets = [];
 
     for (var entry in grouped.entries) {
-      String categoryId = entry.key;
-      String categoryName = categoryId; // Default to ID
-      try {
-        final cat = _categories.firstWhere((c) => c.id == categoryId);
-        categoryName = cat.name;
-      } catch (_) {
-        if (categoryId == 'Autres') categoryName = 'Autres';
-      }
+      String categoryName = entry.key;
 
       int itemIndex = 1;
       final itemRows = entry.value.map((item) {
@@ -2005,23 +2098,16 @@ class OrdersTabState extends State<OrdersTab>
                       (() {
                         final Map<String, List<Map<String, dynamic>>> groupedItems = {};
                         for (var item in items) {
-                          final categoryId = (item['categoryId'] ?? 'Autres').toString();
-                          if (!groupedItems.containsKey(categoryId)) {
-                            groupedItems[categoryId] = [];
+                          final categoryName = _resolveItemCategoryName(item);
+                          if (!groupedItems.containsKey(categoryName)) {
+                            groupedItems[categoryName] = [];
                           }
-                          groupedItems[categoryId]!.add(item);
+                          groupedItems[categoryName]!.add(item);
                         }
 
                         final List<Widget> groupedWidgets = [];
                         for (var entry in groupedItems.entries) {
-                          final categoryId = entry.key;
-                          String categoryName = categoryId;
-                          try {
-                            final cat = _categories.firstWhere((c) => c.id == categoryId);
-                            categoryName = cat.name;
-                          } catch (_) {
-                            if (categoryId == 'Autres') categoryName = 'Autres';
-                          }
+                          final categoryName = entry.key;
 
                           groupedWidgets.add(
                             Padding(

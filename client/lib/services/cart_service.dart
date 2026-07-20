@@ -18,6 +18,7 @@ class CartItem {
   final double? discountPercentage; // Discount percentage if on promotion
   final String priceUnit; // Base price unit (e.g., '1kg', '100g')
   final String? categoryId; // Add categoryId
+  final String? categoryName; // Add categoryName
 
   CartItem({
     required this.id,
@@ -31,6 +32,7 @@ class CartItem {
     this.discountPercentage,
     this.priceUnit = '1kg',
     this.categoryId,
+    this.categoryName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +47,7 @@ class CartItem {
     if (discountPercentage != null) 'discountPercentage': discountPercentage,
     'priceUnit': priceUnit,
     if (categoryId != null) 'categoryId': categoryId,
+    if (categoryName != null) 'categoryName': categoryName,
   };
 
   factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
@@ -63,6 +66,7 @@ class CartItem {
         : null,
     priceUnit: json['priceUnit'] ?? '1kg',
     categoryId: json['categoryId'],
+    categoryName: json['categoryName'],
   );
 
   double get totalPrice => quantity * unitPrice;
@@ -117,6 +121,7 @@ class CartService {
     double? discountPercentage,
     String priceUnit = '1kg',
     String? categoryId,
+    String? categoryName,
   }) async {
     final items = await getCartItems();
 
@@ -139,6 +144,7 @@ class CartService {
         discountPercentage: discountPercentage,
         priceUnit: priceUnit,
         categoryId: categoryId ?? items[existingIndex].categoryId,
+        categoryName: categoryName ?? items[existingIndex].categoryName,
       );
     } else {
       // Add new item
@@ -155,6 +161,7 @@ class CartService {
           discountPercentage: discountPercentage,
           priceUnit: priceUnit,
           categoryId: categoryId,
+          categoryName: categoryName,
         ),
       );
     }
