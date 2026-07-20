@@ -51,6 +51,7 @@ class RealtimeDatabaseService {
             categories.add(
               Category.fromJson({
                 'id': entry.key.toString(),
+                ...categoryData,
                 'name': categoryData['name']?.toString() ?? '',
                 'description': categoryData['description']?.toString() ?? '',
                 'iconName': categoryData['iconName']?.toString() ?? 'category',
@@ -61,6 +62,7 @@ class RealtimeDatabaseService {
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
                 'order': categoryData['order'] ?? 0,
+                'preparationFee': categoryData['preparationFee'] ?? 0.0,
               }),
             );
           } catch (e) {
@@ -180,6 +182,7 @@ class RealtimeDatabaseService {
             categories.add(
               Category.fromJson({
                 'id': entry.key.toString(),
+                ...categoryData,
                 'name': categoryData['name']?.toString() ?? '',
                 'description': categoryData['description']?.toString() ?? '',
                 'iconName': categoryData['iconName']?.toString() ?? 'category',
@@ -190,6 +193,7 @@ class RealtimeDatabaseService {
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
                 'order': categoryData['order'] ?? 0,
+                'preparationFee': categoryData['preparationFee'] ?? 0.0,
               }),
             );
           } catch (e) {
