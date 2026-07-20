@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import '../services/address_service.dart';
 import '../services/city_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/gps_map_selection_modal.dart';
 
 class AddressesManagementScreen extends StatefulWidget {
   const AddressesManagementScreen({super.key});
@@ -411,98 +412,21 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   }
 
   Future<void> _fillAddressFromGps() async {
-    setState(() => _fetchingGps = true);
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Veuillez activer les services de localisation (GPS).');
-      }
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const GpsMapSelectionModal(),
+    );
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Permission de localisation refusée.');
-        }
-      }
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Permission de localisation refusée définitivement. Activez-la dans les paramètres.');
-      }
-
-      Position pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      String? detectedAddress;
-      try {
-        final url = Uri.parse(
-          'https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json&addressdetails=1',
-        );
-        final response = await http.get(url, headers: {'User-Agent': 'LivriYesApp'}).timeout(const Duration(seconds: 5));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data is Map && data.containsKey('display_name')) {
-            detectedAddress = data['display_name']?.toString();
-          }
-        }
-      } catch (_) {}
-
-      if (detectedAddress == null || detectedAddress.isEmpty) {
-        try {
-          List<Placemark> placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-          if (placemarks.isNotEmpty) {
-            final p = placemarks.first;
-            final parts = <String>[];
-            if (p.street != null && p.street!.trim().isNotEmpty) parts.add(p.street!.trim());
-            if (p.subLocality != null && p.subLocality!.trim().isNotEmpty) parts.add(p.subLocality!.trim());
-            if (p.locality != null && p.locality!.trim().isNotEmpty) parts.add(p.locality!.trim());
-            if (p.administrativeArea != null && p.administrativeArea!.trim().isNotEmpty) parts.add(p.administrativeArea!.trim());
-            if (p.country != null && p.country!.trim().isNotEmpty) parts.add(p.country!.trim());
-            if (parts.isNotEmpty) {
-              detectedAddress = parts.join(', ');
-            }
-          }
-        } catch (_) {}
-      }
-
-      detectedAddress ??= '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
-
+    if (result != null && result['address'] != null) {
       setState(() {
-        _notesController.text = detectedAddress!;
-      });
-
-      if (_allWilayas.isNotEmpty) {
-        for (final w in _allWilayas) {
-          if (detectedAddress.toLowerCase().contains(w.toLowerCase())) {
-            setState(() {
-              _selectedWilaya = w;
-            });
-            break;
-          }
+        _notesController.text = result['address'];
+        final detectedWilaya = result['wilaya']?.toString();
+        if (detectedWilaya != null && _allWilayas.contains(detectedWilaya)) {
+          _selectedWilaya = detectedWilaya;
         }
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Position GPS récupérée avec succès!'),
-            backgroundColor: AppTheme.successColor,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _fetchingGps = false);
+      });
     }
   }
 
@@ -761,7 +685,7 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
           child: Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: InkWell(
-              onTap: _fetchingGps ? null : _fillAddressFromGps,
+              onTap: _fillAddressFromGps,
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -770,21 +694,14 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_fetchingGps)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryColor),
-                      )
-                    else
-                      const Icon(Icons.my_location, size: 16, color: AppTheme.primaryColor),
-                    const SizedBox(width: 6),
+                    Icon(Icons.map, size: 16, color: AppTheme.primaryColor),
+                    SizedBox(width: 6),
                     Text(
-                      _fetchingGps ? 'Localisation en cours...' : '📍 Obtenir adresse GPS',
-                      style: const TextStyle(
+                      '📍 Choisir sur la carte (GPS)',
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryColor,
