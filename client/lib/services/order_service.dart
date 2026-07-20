@@ -130,6 +130,36 @@ class OrderService {
     final user = _auth.currentUser;
     if (user == null) return null;
 
+    // Fetch user profile info from RTDB /users/{user.uid}
+    String customerName = user.displayName ?? '';
+    String customerPhone = user.phoneNumber ?? '';
+    String customerEmail = user.email ?? '';
+
+    try {
+      final userSnap = await _db.ref('users').child(user.uid).get();
+      if (userSnap.exists && userSnap.value is Map) {
+        final uData = Map<String, dynamic>.from(userSnap.value as Map);
+        final nameCandidate = (uData['name'] ?? uData['displayName'] ?? uData['fullName'] ?? uData['username'])?.toString().trim();
+        if (nameCandidate != null && nameCandidate.isNotEmpty && nameCandidate.toLowerCase() != 'client') {
+          customerName = nameCandidate;
+        }
+
+        final phoneCandidate = (uData['phone'] ?? uData['phoneNumber'] ?? uData['contactPhone'])?.toString().trim();
+        if (phoneCandidate != null && phoneCandidate.isNotEmpty) {
+          customerPhone = phoneCandidate;
+        }
+
+        final emailCandidate = (uData['email'] ?? uData['mail'])?.toString().trim();
+        if (emailCandidate != null && emailCandidate.isNotEmpty) {
+          customerEmail = emailCandidate;
+        }
+      }
+    } catch (e) {
+      print('Error fetching user profile for order creation: $e');
+    }
+
+    if (customerName.isEmpty) customerName = 'Client';
+
     await WilayaGeoService.ensureLoaded();
 
     // Generate order ID
@@ -153,6 +183,8 @@ class OrderService {
             if (item.originalPrice != null) 'originalPrice': item.originalPrice,
             if (item.discountPercentage != null)
               'discountPercentage': item.discountPercentage,
+            if (item.categoryId != null) 'categoryId': item.categoryId,
+            if (item.categoryName != null) 'categoryName': item.categoryName,
           },
         )
         .toList();
@@ -163,6 +195,12 @@ class OrderService {
     await ref.set({
       'orderId': orderId,
       'userId': user.uid,
+      'customerName': customerName,
+      'userName': customerName,
+      'phone': customerPhone.isNotEmpty ? customerPhone : 'Non fourni',
+      'phoneNumber': customerPhone.isNotEmpty ? customerPhone : 'Non fourni',
+      'email': customerEmail.isNotEmpty ? customerEmail : 'Non renseigné',
+      'userEmail': customerEmail.isNotEmpty ? customerEmail : 'Non renseigné',
       'items': itemsData,
       'cartTotal': cartTotal,
       'deliveryFee': deliveryFee,
