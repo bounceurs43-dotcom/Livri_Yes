@@ -210,10 +210,18 @@ class _CartTabState extends State<CartTab> {
 
   bool _hasElectroMenagerInCart() {
     for (final item in _cartItems) {
-      final categoryId = item.categoryId;
-      if (categoryId != null && categoryId.isNotEmpty) {
+      final categoryId = item.categoryId ?? '';
+      final categoryName = item.categoryName ?? '';
+      final productName = item.productName.toLowerCase();
+
+      final catNameLower = categoryName.toLowerCase();
+      if (catNameLower.contains('électroménager') || catNameLower.contains('electromenager')) {
+        return true;
+      }
+
+      if (categoryId.isNotEmpty) {
         final cat = _categories.firstWhere(
-          (c) => c.id == categoryId,
+          (c) => c.id == categoryId || c.subCategoryIds.contains(categoryId),
           orElse: () => Category(id: '', name: '', description: '', iconName: '', color: '', subCategoryIds: [], createdAt: DateTime.now()),
         );
         final nameLower = cat.name.toLowerCase();
@@ -225,27 +233,72 @@ class _CartTabState extends State<CartTab> {
           return true;
         }
       }
+
+      if (productName.contains('climatiseur') ||
+          productName.contains('refrigerateur') ||
+          productName.contains('réfrigérateur') ||
+          productName.contains('frigo') ||
+          productName.contains('machine à laver') ||
+          productName.contains('machine a laver') ||
+          productName.contains('lave-linge') ||
+          productName.contains('téléviseur') ||
+          productName.contains('televiseur') ||
+          productName.contains('cuisinière') ||
+          productName.contains('cuisiniere') ||
+          productName.contains('micro-ondes') ||
+          productName.contains('micro-onde') ||
+          productName.contains('congélateur')) {
+        return true;
+      }
     }
     return false;
   }
 
   bool _hasStandardItemsInCart() {
     for (final item in _cartItems) {
-      final categoryId = item.categoryId;
-      if (categoryId != null && categoryId.isNotEmpty) {
+      final categoryId = item.categoryId ?? '';
+      final categoryName = item.categoryName ?? '';
+      final productName = item.productName.toLowerCase();
+
+      bool isElectro = false;
+
+      final catNameLower = categoryName.toLowerCase();
+      if (catNameLower.contains('électroménager') || catNameLower.contains('electromenager')) {
+        isElectro = true;
+      }
+
+      if (!isElectro && categoryId.isNotEmpty) {
         final cat = _categories.firstWhere(
-          (c) => c.id == categoryId,
+          (c) => c.id == categoryId || c.subCategoryIds.contains(categoryId),
           orElse: () => Category(id: '', name: '', description: '', iconName: '', color: '', subCategoryIds: [], createdAt: DateTime.now()),
         );
         final nameLower = cat.name.toLowerCase();
         final idLower = cat.id.toLowerCase();
-        if (!nameLower.contains('électroménager') &&
-            !nameLower.contains('electromenager') &&
-            !idLower.contains('électroménager') &&
-            !idLower.contains('electromenager')) {
-          return true;
+        if (nameLower.contains('électroménager') ||
+            nameLower.contains('electromenager') ||
+            idLower.contains('électroménager') ||
+            idLower.contains('electromenager')) {
+          isElectro = true;
         }
-      } else {
+      }
+
+      if (!isElectro &&
+          (productName.contains('climatiseur') ||
+           productName.contains('refrigerateur') ||
+           productName.contains('réfrigérateur') ||
+           productName.contains('frigo') ||
+           productName.contains('machine à laver') ||
+           productName.contains('machine a laver') ||
+           productName.contains('téléviseur') ||
+           productName.contains('televiseur') ||
+           productName.contains('cuisinière') ||
+           productName.contains('cuisiniere') ||
+           productName.contains('micro-ondes') ||
+           productName.contains('congélateur'))) {
+        isElectro = true;
+      }
+
+      if (!isElectro) {
         return true;
       }
     }
@@ -1173,18 +1226,58 @@ class _CartTabState extends State<CartTab> {
       try {
         return _categories.firstWhere((cat) => cat.id == item.categoryId);
       } catch (_) {}
+      try {
+        return _categories.firstWhere((cat) => cat.subCategoryIds.contains(item.categoryId));
+      } catch (_) {}
+    }
+    if (item.categoryName != null && item.categoryName!.isNotEmpty) {
+      try {
+        return _categories.firstWhere((cat) => cat.name.toLowerCase() == item.categoryName!.toLowerCase());
+      } catch (_) {}
+    }
+    final nameLower = item.productName.toLowerCase();
+    for (var cat in _categories) {
+      final cName = cat.name.toLowerCase();
+      if ((cName.contains('viande') && (nameLower.contains('boeuf') || nameLower.contains('bœuf') || nameLower.contains('poulet') || nameLower.contains('viande') || nameLower.contains('escalope'))) ||
+          (cName.contains('fruit') && (nameLower.contains('nectarine') || nameLower.contains('pomme') || nameLower.contains('banane') || nameLower.contains('orange'))) ||
+          ((cName.contains('superette') || cName.contains('supérette')) && (nameLower.contains('coca') || nameLower.contains('jus') || nameLower.contains('lait') || nameLower.contains('sucre') || nameLower.contains('piment')))) {
+        return cat;
+      }
     }
     return null;
   }
 
+  double _getCategoryPrepFee(Category cat) {
+    if (cat.preparationFee > 0) return cat.preparationFee;
+    final catNameLower = cat.name.toLowerCase();
+    if (catNameLower.contains('fruit') || catNameLower.contains('légume') || catNameLower.contains('legume')) {
+      return 0.0;
+    }
+    if (catNameLower.contains('viande') ||
+        catNameLower.contains('superette') ||
+        catNameLower.contains('supérette') ||
+        catNameLower.contains('phone') ||
+        catNameLower.contains('téléphone') ||
+        catNameLower.contains('telephone') ||
+        catNameLower.contains('smartphone') ||
+        catNameLower.contains('électronique') ||
+        catNameLower.contains('electronique')) {
+      return 4.99;
+    }
+    return cat.preparationFee;
+  }
+
   List<Widget> _buildPreparationFeesWidgets({double fontSize = 11, bool forModal = false}) {
     List<Widget> feeWidgets = [];
-    Map<String, Category> categoriesWithFeesInCart = {};
+    Map<String, ({String name, double fee})> categoriesWithFeesInCart = {};
 
     for (var item in _cartItems) {
       final category = _findCategoryForItem(item);
-      if (category != null && category.preparationFee > 0) {
-        categoriesWithFeesInCart[category.id] = category;
+      if (category != null) {
+        final fee = _getCategoryPrepFee(category);
+        if (fee > 0) {
+          categoriesWithFeesInCart[category.id] = (name: category.name, fee: fee);
+        }
       }
     }
 
@@ -1197,7 +1290,7 @@ class _CartTabState extends State<CartTab> {
             children: [
               Expanded(
                 child: Text(
-                  '$catName:',
+                  'Frais de préparation ($catName):',
                   style: TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: fontSize,
@@ -1205,7 +1298,7 @@ class _CartTabState extends State<CartTab> {
                 ),
               ),
               Text(
-                '+${_formatPrice(category.preparationFee)}',
+                '+${_formatPrice(category.fee)}',
                 style: TextStyle(
                   color: forModal ? AppTheme.textPrimary : AppTheme.textSecondary,
                   fontSize: fontSize,
@@ -1223,15 +1316,18 @@ class _CartTabState extends State<CartTab> {
 
   double _getTotalPreparationFee() {
     double total = 0.0;
-    Map<String, Category> categoriesWithFeesInCart = {};
+    Map<String, double> categoriesWithFeesInCart = {};
     for (var item in _cartItems) {
       final category = _findCategoryForItem(item);
-      if (category != null && category.preparationFee > 0) {
-        categoriesWithFeesInCart[category.id] = category;
+      if (category != null) {
+        final fee = _getCategoryPrepFee(category);
+        if (fee > 0) {
+          categoriesWithFeesInCart[category.id] = fee;
+        }
       }
     }
-    for (var category in categoriesWithFeesInCart.values) {
-      total += category.preparationFee;
+    for (var fee in categoriesWithFeesInCart.values) {
+      total += fee;
     }
     return total;
   }
