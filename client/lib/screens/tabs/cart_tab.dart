@@ -109,6 +109,7 @@ class _CartTabState extends State<CartTab> {
   bool _deliveryAvailable = true;
   String? _resolvedWilayaName;
   String? _stripePublishableKey;
+  String? _stripeSecretKey;
   String? _googlePayMerchantId;
   bool _isGooglePaySupported = false;
   bool _isPayPalConfigured = false;
@@ -749,6 +750,7 @@ class _CartTabState extends State<CartTab> {
     try {
       final keys = await PaymentService.getAdminPublicPaymentInfo();
       _stripePublishableKey = keys['stripePublishableKey'];
+      _stripeSecretKey = keys['stripeSecretKey'];
       _googlePayMerchantId = keys['googlePayMerchantId'];
       
       final paypalEmail = keys['paypalEmail'];
@@ -1553,7 +1555,7 @@ class _CartTabState extends State<CartTab> {
                 ),
                 onPressed: () {
                   Navigator.pop(context); // Close BottomSheet
-                  _processPayment('stripe');
+                  _processGooglePayNative();
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1746,6 +1748,139 @@ class _CartTabState extends State<CartTab> {
       if (mounted) {
         _showPaymentErrorDialog(e);
       }
+    }
+  }
+
+  /// Processes payment using the native Google Pay sheet (no WebView)
+  Future<void> _processGooglePayNative() async {
+    try {
+      if (_stripePublishableKey == null || _stripePublishableKey!.isEmpty) {
+        throw Exception('Stripe non configuré. Contactez le support.');
+      }
+      if (_stripeSecretKey == null || _stripeSecretKey!.isEmpty) {
+        throw Exception('Clé Stripe manquante. Contactez le support.');
+      }
+
+      final finalTotal = _getFinalTotal();
+      final amountInCents = (finalTotal * 100).round();
+
+      if (amountInCents < 50) {
+        throw Exception(
+          'Le montant (${finalTotal.toStringAsFixed(2)}€) est inférieur au minimum requis (0.50€).\nVeuillez ajouter des articles.',
+        );
+      }
+
+      // Show loading
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Ouverture de Google Pay...',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      // 1. Create Payment Intent directly via Stripe REST API
+      final response = await http.post(
+        Uri.parse('https://api.stripe.com/v1/payment_intents'),
+        headers: {
+          'Authorization': 'Bearer $_stripeSecretKey',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: {
+          'amount': amountInCents.toString(),
+          'currency': 'eur',
+          'payment_method_types[]': 'card',
+        },
+      );
+
+      if (mounted) Navigator.of(context).pop(); // Close loading
+
+      if (response.statusCode != 200) {
+        final errorData = json.decode(response.body);
+        final errMsg = errorData['error']?['message'] ?? 'Erreur Stripe';
+        throw Exception(errMsg);
+      }
+
+      final clientSecret = json.decode(response.body)['client_secret'] as String;
+
+      // 2. Confirm via native Google Pay sheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'LivriYes',
+          googlePay: PaymentSheetGooglePay(
+            merchantCountryCode: 'FR',
+            currencyCode: 'EUR',
+            testEnv: false,
+          ),
+          style: ThemeMode.light,
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
+
+      // 3. Payment succeeded — save order
+      final cartTotal = _getCartTotal();
+      final expressFee = _expressDelivery && _isExpressAvailable(cartTotal)
+          ? (_expressDeliveryTotalCost - _deliveryFee)
+          : 0.0;
+      final deliveryAddress = _selectedAddress!['fullAddress'] ?? 'Non spécifiée';
+      final deliveryLabel = _selectedAddress!['label']?.toString();
+      final wilaya = _resolvedWilayaName ?? _selectedAddress!['wilaya']?.toString() ?? '';
+
+      final orderId = await OrderService.createOrder(
+        items: _cartItems,
+        cartTotal: cartTotal,
+        deliveryFee: _deliveryFee,
+        expressDelivery: _expressDelivery,
+        expressFee: expressFee,
+        tip: _tip,
+        total: finalTotal,
+        deliveryAddress: deliveryAddress,
+        deliveryLabel: deliveryLabel,
+        wilaya: wilaya,
+        paymentMethod: 'Google Pay',
+        paymentStatus: 'paid',
+        receiverName: _receiverName,
+        receiverPhone: _receiverPhone,
+        unavailabilityPolicy: _unavailabilityPolicy,
+      );
+
+      await CartService.clearCart();
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const LivriyesHomePage(initialIndex: 2),
+          ),
+          (route) => false,
+        );
+      }
+    } on StripeException catch (e) {
+      // User cancelled or card error
+      if (e.error.code == FailureCode.Canceled) return;
+      if (mounted) _showPaymentErrorDialog(e);
+    } catch (e) {
+      if (mounted) _showPaymentErrorDialog(e);
     }
   }
 
