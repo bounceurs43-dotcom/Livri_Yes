@@ -1760,7 +1760,7 @@ class _ProfileTabState extends State<ProfileTab> {
                             ),
                           );
                           if (confirmed == true && mounted) {
-                            await FirebaseAuth.instance.signOut();
+                            await AuthService().signOut();
                             if (mounted) {
                               Navigator.of(context).pushAndRemoveUntil(
                                 MaterialPageRoute(

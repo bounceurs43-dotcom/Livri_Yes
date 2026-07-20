@@ -65,7 +65,7 @@ async function initializeStripe() {
             layout: "tabs",
             wallets: {
                 applePay: 'never',
-                googlePay: 'always'
+                googlePay: 'auto'
             }
         };
 

@@ -12,6 +12,7 @@ import 'l10n/app_localizations.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/splash_screen.dart';
+import 'services/auth_service.dart';
 import 'services/locale_service.dart';
 import 'services/notification_service.dart';
 import 'services/background_service.dart';
@@ -40,6 +41,13 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
+
+    try {
+      await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+    } catch (e) {
+      debugPrint('Warning: setPersistence error: $e');
+    }
+
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Initialize Notifications
@@ -101,27 +109,52 @@ class LivriyesApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  final AuthService _authService = AuthService();
+  bool _isAutoLoggingIn = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialAuth();
+  }
+
+  Future<void> _checkInitialAuth() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await _authService.tryAutoLogin();
+    }
+    if (mounted) {
+      setState(() {
+        _isAutoLoggingIn = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isAutoLoggingIn) {
+      return const SplashScreen();
+    }
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show the Flutter splash screen (identical to native) to ensure continuity
           return const SplashScreen();
         }
 
-        // Remove native splash when we have data (either user or null)
         FlutterNativeSplash.remove();
 
-        if (snapshot.hasData) {
-          // User is signed in, show client home page
+        if (snapshot.hasData && snapshot.data != null) {
           return const LivriyesHomePage();
         } else {
-          // User is not signed in, show auth screen
           return const ClientAuthScreen();
         }
       },

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'cloudinary_service.dart';
 
 class AuthService {
@@ -221,6 +222,7 @@ class AuthService {
         );
         print('User profile saved to RTDB users/${user.uid}');
 
+        await saveAuthCredentials(phone, password);
         return null; // Success
       }
     } on FirebaseAuthException catch (e) {
@@ -231,6 +233,54 @@ class AuthService {
       return 'An unexpected error occurred: $e';
     }
     return 'Failed to create account';
+  }
+
+  // Save credentials to SharedPreferences for session persistence across app restarts
+  static Future<void> saveAuthCredentials(String phone, String password) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_phone', phone);
+      await prefs.setString('auth_password', password);
+      await prefs.setBool('is_logged_in', true);
+    } catch (e) {
+      print('Error saving auth credentials: $e');
+    }
+  }
+
+  // Sign out and clear stored session credentials
+  Future<void> signOut() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_phone');
+      await prefs.remove('auth_password');
+      await prefs.setBool('is_logged_in', false);
+    } catch (e) {
+      print('Error clearing auth prefs on sign out: $e');
+    }
+    await _auth.signOut();
+  }
+
+  // Auto-login using stored credentials if FirebaseAuth.currentUser is null
+  Future<bool> tryAutoLogin() async {
+    try {
+      if (_auth.currentUser != null) return true;
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      final phone = prefs.getString('auth_phone');
+      final password = prefs.getString('auth_password');
+
+      if (isLoggedIn && phone != null && phone.isNotEmpty && password != null && password.isNotEmpty) {
+        print('Attempting auto-login for saved phone: $phone');
+        final error = await signInClient(phone: phone, password: password);
+        if (error == null && _auth.currentUser != null) {
+          print('Auto-login successful!');
+          return true;
+        }
+      }
+    } catch (e) {
+      print('Error in tryAutoLogin: $e');
+    }
+    return false;
   }
 
   // Sign in for client
@@ -292,6 +342,7 @@ class AuthService {
           } catch (syncError) {
             print('Error syncing realtime profile on sign-in: $syncError');
           }
+          await saveAuthCredentials(phone, password);
           return null; // Success
         }
       } on FirebaseAuthException catch (e) {
