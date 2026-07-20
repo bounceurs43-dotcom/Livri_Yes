@@ -1248,22 +1248,6 @@ class _CartTabState extends State<CartTab> {
   }
 
   double _getCategoryPrepFee(Category cat) {
-    if (cat.preparationFee > 0) return cat.preparationFee;
-    final catNameLower = cat.name.toLowerCase();
-    if (catNameLower.contains('fruit') || catNameLower.contains('légume') || catNameLower.contains('legume')) {
-      return 0.0;
-    }
-    if (catNameLower.contains('viande') ||
-        catNameLower.contains('superette') ||
-        catNameLower.contains('supérette') ||
-        catNameLower.contains('phone') ||
-        catNameLower.contains('téléphone') ||
-        catNameLower.contains('telephone') ||
-        catNameLower.contains('smartphone') ||
-        catNameLower.contains('électronique') ||
-        catNameLower.contains('electronique')) {
-      return 4.99;
-    }
     return cat.preparationFee;
   }
 
