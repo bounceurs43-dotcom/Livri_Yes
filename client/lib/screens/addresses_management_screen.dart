@@ -444,10 +444,22 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   }
 
   Future<void> _submitAddress() async {
-    if (_selectedWilaya == null || _selectedWilaya!.isEmpty) {
+    final label = _labelController.text.trim();
+    if (label.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez sélectionner une Wilaya.'),
+          content: Text('Veuillez saisir un label pour l\'adresse (ex: Maison, Bureau) *'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez saisir le nom du destinataire *'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -455,25 +467,40 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
     }
 
     final rawPhone = _phoneController.text.trim().replaceAll('+213', '').replaceAll(' ', '').trim();
-    if (rawPhone.isNotEmpty) {
-      if (rawPhone.length != 9 && rawPhone.length != 10) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Veuillez saisir un numéro de téléphone valide (ex: 778029960).'),
-            backgroundColor: AppTheme.warningColor,
-          ),
-        );
-        return;
-      }
+    if (rawPhone.isEmpty || (rawPhone.length != 9 && rawPhone.length != 10)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez saisir un numéro de téléphone valide (ex: 778029960) *'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
     }
 
-    final formattedPhone = rawPhone.isNotEmpty ? '+213 $rawPhone' : '+213';
+    if (_selectedWilaya == null || _selectedWilaya!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner une Wilaya *'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
 
+    if (_selectedCommune == null || _selectedCommune!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez sélectionner une Commune *'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
+    final formattedPhone = '+213 $rawPhone';
     setState(() => _submitting = true);
 
     try {
-      final label = _labelController.text.trim();
-      final name = _nameController.text.trim();
       final notes = _notesController.text.trim();
 
       final parts = <String>[];
@@ -483,10 +510,10 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
 
       final fullAddr = parts.isNotEmpty
           ? parts.join(', ')
-          : '$_selectedWilaya ${label.isNotEmpty ? "($label)" : ""}';
+          : '$_selectedWilaya, $_selectedCommune ($label)';
 
       final addressData = {
-        'label': label.isNotEmpty ? label : 'Maison',
+        'label': label,
         'recipientName': name,
         'phone': formattedPhone,
         'wilaya': _selectedWilaya,
@@ -501,10 +528,7 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('delivery_address', fullAddr);
-        await prefs.setString(
-          'delivery_address_label',
-          label.isNotEmpty ? label : _selectedWilaya!,
-        );
+        await prefs.setString('delivery_address_label', label);
       }
 
       if (mounted) {
