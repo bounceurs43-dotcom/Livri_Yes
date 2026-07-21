@@ -643,64 +643,40 @@ class _CartTabState extends State<CartTab> {
   }
 
   Future<void> _showCheckoutAddressScreen() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CheckoutAddressScreen(
-          initialAddress: _selectedAddress,
-          initialReceiverName: _receiverName,
-          initialReceiverPhone: _receiverPhone,
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.grey),
+                  label: const Text('Fermer', style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              AddressesManagementScreen(
+                onAddressAdded: () {
+                  Navigator.pop(context);
+                  _loadDeliveryAddress();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
-
-    if (result != null && result is Map<String, dynamic>) {
-      final addressData = result['address'];
-      final receiverData = result['receiver'];
-      
-      if (addressData != null) {
-        setState(() {
-          _selectedAddress = addressData;
-          _updateDeliveryContext(addressData);
-        });
-
-        try {
-          final user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            final addresses = await AddressService.getAddresses();
-            String? existingId;
-            for (final addr in addresses) {
-              if (addr['wilaya'] == addressData['wilaya'] &&
-                  addr['commune'] == addressData['commune'] &&
-                  addr['latitude'] == addressData['latitude'] &&
-                  addr['longitude'] == addressData['longitude'] &&
-                  addr['label'] == addressData['label']) {
-                existingId = addr['id'];
-                break;
-              }
-            }
-            if (existingId != null) {
-              await AddressService.setDefaultAddress(existingId);
-            } else {
-              final newAddressId = await AddressService.addAddress(addressData);
-              if (newAddressId != null) {
-                await AddressService.setDefaultAddress(newAddressId);
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('Error saving new address from cart: $e');
-        }
-      }
-      
-      if (receiverData != null) {
-        setState(() {
-          _receiverName = receiverData['name'];
-          _receiverPhone = receiverData['phone'];
-        });
-        await _saveReceiverToPrefs(_receiverName, _receiverPhone);
-      }
-    }
+    await _loadDeliveryAddress();
   }
 
   void _applySelectedAddress(Map<String, dynamic>? address) {
@@ -2684,6 +2660,35 @@ class _CartTabState extends State<CartTab> {
                               ],
                             ),
                           ),
+                          if (_hasElectroMenagerInCart()) ...[
+                            const SizedBox(height: 2),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8, right: 2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '  • Livraison Électroménager',
+                                      style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 10,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatPrice(_isBejaia ? _bejaiaElectroFee : _otherWilayaElectroFee),
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           // 2. Frais de préparation
                           if (_getTotalPreparationFee() > 0) ...[
                             const SizedBox(height: 4),
@@ -3105,15 +3110,22 @@ class _CartTabState extends State<CartTab> {
   }
 
   Widget _buildCheckoutAddressCard() {
+    final hasAddress = _selectedAddress != null;
     final label = _selectedAddress?['label']?.toString().trim();
-    final addressText = label != null && label.isNotEmpty
-        ? label
-        : 'Adresse de livraison...';
+    final fullAddressStr = _selectedAddress?['fullAddress']?.toString().trim();
+    final recipientName = _selectedAddress?['recipientName']?.toString().trim();
+    final phone = _selectedAddress?['phone']?.toString().trim();
 
-    final hasReceiver = _receiverName?.isNotEmpty == true || _receiverPhone?.isNotEmpty == true;
+    final addressText = hasAddress
+        ? (fullAddressStr != null && fullAddressStr.isNotEmpty
+            ? fullAddressStr
+            : (label != null && label.isNotEmpty ? label : 'Adresse enregistrée'))
+        : 'Veuillez ajouter une adresse de livraison (Obligatoire) *';
+
+    final hasReceiver = (recipientName != null && recipientName.isNotEmpty) || (phone != null && phone.isNotEmpty) || (_receiverName != null && _receiverName!.isNotEmpty);
     final receiverText = hasReceiver
-        ? '${_receiverName ?? ''}${_receiverName?.isNotEmpty == true && _receiverPhone?.isNotEmpty == true ? ' • ' : ''}${_receiverPhone ?? ''}'
-        : 'Destinataire (nom, téléphone)';
+        ? '${recipientName ?? _receiverName ?? ''}${(recipientName ?? _receiverName)?.isNotEmpty == true && (phone ?? _receiverPhone)?.isNotEmpty == true ? ' • ' : ''}${phone ?? _receiverPhone ?? ''}'
+        : 'Destinataire';
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -3122,13 +3134,17 @@ class _CartTabState extends State<CartTab> {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: hasAddress ? Colors.white : Colors.red.withOpacity(0.04),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: hasAddress ? AppTheme.primaryColor.withOpacity(0.15) : AppTheme.errorColor,
+            width: hasAddress ? 1 : 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withValues(alpha: 0.06),
+              color: (hasAddress ? AppTheme.primaryColor : AppTheme.errorColor).withOpacity(0.06),
               blurRadius: 10,
-              offset: const Offset(0, 6),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -3139,12 +3155,12 @@ class _CartTabState extends State<CartTab> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                    color: (hasAddress ? AppTheme.primaryColor : AppTheme.errorColor).withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.location_on,
-                    color: AppTheme.primaryColor,
+                    color: hasAddress ? AppTheme.primaryColor : AppTheme.errorColor,
                     size: 18,
                   ),
                 ),
@@ -3153,45 +3169,53 @@ class _CartTabState extends State<CartTab> {
                   child: Text(
                     addressText,
                     style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: _selectedAddress != null ? FontWeight.w600 : FontWeight.w500,
+                      color: hasAddress ? AppTheme.textPrimary : AppTheme.errorColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: hasAddress ? 13 : 12,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.edit, size: 16, color: AppTheme.textSecondary),
+                Icon(
+                  hasAddress ? Icons.edit : Icons.add_circle,
+                  size: 18,
+                  color: hasAddress ? AppTheme.textSecondary : AppTheme.errorColor,
+                ),
               ],
             ),
-            const Divider(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.blue,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    receiverText,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: hasReceiver ? FontWeight.w600 : FontWeight.w500,
+            if (hasAddress) ...[
+              const Divider(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.12),
+                      shape: BoxShape.circle,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: const Icon(
+                      Icons.person,
+                      color: Colors.blue,
+                      size: 18,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      receiverText,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: hasReceiver ? FontWeight.w600 : FontWeight.w400,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

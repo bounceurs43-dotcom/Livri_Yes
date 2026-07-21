@@ -356,10 +356,11 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   final TextEditingController _notesController = TextEditingController();
 
   String? _selectedWilaya;
+  String? _selectedCommune;
   List<String> _allWilayas = [];
+  List<String> _communes = [];
   bool _loadingWilayas = true;
   bool _submitting = false;
-  bool _fetchingGps = false;
 
   @override
   void initState() {
@@ -402,6 +403,8 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
         _allWilayas = CityService.getWilayas();
         if (_allWilayas.isNotEmpty && _selectedWilaya == null) {
           _selectedWilaya = _allWilayas.first;
+          _communes = CityService.getCommunesForWilaya(_selectedWilaya!);
+          if (_communes.isNotEmpty) _selectedCommune = _communes.first;
         }
         _loadingWilayas = false;
       });
@@ -409,6 +412,14 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       print('Error loading wilayas data: $e');
       setState(() => _loadingWilayas = false);
     }
+  }
+
+  void _onWilayaSelected(String wilaya) {
+    setState(() {
+      _selectedWilaya = wilaya;
+      _communes = CityService.getCommunesForWilaya(wilaya);
+      _selectedCommune = _communes.isNotEmpty ? _communes.first : null;
+    });
   }
 
   Future<void> _fillAddressFromGps() async {
@@ -441,19 +452,20 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       return;
     }
 
-    final phoneText = _phoneController.text.trim();
-    if (phoneText.isNotEmpty && phoneText != '+213') {
-      final sanitized = phoneText.replaceAll('+213', '').replaceAll(' ', '').trim();
-      if (sanitized.length != 9 && sanitized.length != 10) {
+    final rawPhone = _phoneController.text.trim().replaceAll('+213', '').replaceAll(' ', '').trim();
+    if (rawPhone.isNotEmpty) {
+      if (rawPhone.length != 9 && rawPhone.length != 10) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Veuillez saisir un numéro de téléphone valide.'),
+            content: Text('Veuillez saisir un numéro de téléphone valide (ex: 778029960).'),
             backgroundColor: AppTheme.warningColor,
           ),
         );
         return;
       }
     }
+
+    final formattedPhone = rawPhone.isNotEmpty ? '+213 $rawPhone' : '+213';
 
     setState(() => _submitting = true);
 
@@ -462,15 +474,21 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       final name = _nameController.text.trim();
       final notes = _notesController.text.trim();
 
-      final fullAddr = notes.isNotEmpty
-          ? '$_selectedWilaya, $notes'
+      final parts = <String>[];
+      if (_selectedWilaya != null && _selectedWilaya!.isNotEmpty) parts.add(_selectedWilaya!);
+      if (_selectedCommune != null && _selectedCommune!.isNotEmpty) parts.add(_selectedCommune!);
+      if (notes.isNotEmpty) parts.add(notes);
+
+      final fullAddr = parts.isNotEmpty
+          ? parts.join(', ')
           : '$_selectedWilaya ${label.isNotEmpty ? "($label)" : ""}';
 
       final addressData = {
         'label': label.isNotEmpty ? label : 'Maison',
         'recipientName': name,
-        'phone': phoneText,
+        'phone': formattedPhone,
         'wilaya': _selectedWilaya,
+        'commune': _selectedCommune,
         'additionalInfo': notes,
         'fullAddress': fullAddr,
       };
@@ -539,6 +557,38 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
     );
   }
 
+  Widget _buildPhoneField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: _phoneController,
+        keyboardType: TextInputType.phone,
+        style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w600),
+        decoration: InputDecoration(
+          prefixIcon: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            margin: const EdgeInsets.only(right: 8),
+            decoration: const BoxDecoration(
+              border: Border(right: BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+            ),
+            child: const Text(
+              '+213',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+          hintText: 'Téléphone (ex: 778029960)',
+          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.normal),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
   Widget _buildWilayaSelector() {
     if (_loadingWilayas) {
       return const Center(
@@ -588,8 +638,58 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
               ),
             ),
             onSelected: (selected) {
+              if (selected) {
+                _onWilayaSelected(wilaya);
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCommuneSelector() {
+    if (_communes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 4),
+        child: Text(
+          'Veuillez sélectionner une wilaya.',
+          style: TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _communes.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final commune = _communes[index];
+          final isSelected = _selectedCommune == commune;
+
+          return ChoiceChip(
+            label: Text(
+              commune,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppTheme.textPrimary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+            selected: isSelected,
+            selectedColor: AppTheme.primaryColor,
+            backgroundColor: const Color(0xFFF5F7FA),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+              ),
+            ),
+            onSelected: (selected) {
               setState(() {
-                _selectedWilaya = selected ? wilaya : null;
+                _selectedCommune = selected ? commune : null;
               });
             },
           );
@@ -639,19 +739,15 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
         ),
         const SizedBox(height: 12),
 
-        // Input 2: Beneficiary Name
+        // Input 2: Destinataire (Changed from Nom et prénom du bénéficiaire)
         _buildTextField(
           controller: _nameController,
-          hintText: 'Nom et prénom du bénéficiaire',
+          hintText: 'Destinataire',
         ),
         const SizedBox(height: 12),
 
-        // Input 3: Phone Number
-        _buildTextField(
-          controller: _phoneController,
-          hintText: 'Téléphone (+213)',
-          keyboardType: TextInputType.phone,
-        ),
+        // Input 3: Phone Number with Fixed +213
+        _buildPhoneField(),
         const SizedBox(height: 16),
 
         // Section: Wilaya *
@@ -678,6 +774,33 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
         const SizedBox(height: 8),
         _buildWilayaSelector(),
         const SizedBox(height: 16),
+
+        // Section: Commune
+        if (_selectedWilaya != null && _selectedWilaya!.isNotEmpty) ...[
+          Row(
+            children: const [
+              Text(
+                'Commune ',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              Text(
+                '*',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.errorColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildCommuneSelector(),
+          const SizedBox(height: 16),
+        ],
 
         // GPS Action Button
         Align(
