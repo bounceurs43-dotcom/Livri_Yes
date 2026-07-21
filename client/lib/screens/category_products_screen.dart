@@ -355,40 +355,43 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                                                 SizedBox(
                                                   width: double.infinity,
                                                   child: ElevatedButton.icon(
-                                                    onPressed: () async {
-                                                      final result =
-                                                          await showDialog(
-                                                            context: context,
-                                                            builder: (context) =>
-                                                                AddToCartDialog(
-                                                                  product:
-                                                                      product,
+                                                    onPressed: product.isAvailable
+                                                        ? () async {
+                                                            final result =
+                                                                await showDialog(
+                                                                  context: context,
+                                                                  builder: (context) =>
+                                                                      AddToCartDialog(
+                                                                        product:
+                                                                            product,
+                                                                      ),
+                                                                );
+                                                            if (result != null &&
+                                                                mounted) {
+                                                              ScaffoldMessenger.of(
+                                                                context,
+                                                              ).showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                    '${result['quantity']}x ${product.name} ajouté${result['quantity'] > 1 ? 's' : ''} au panier',
+                                                                  ),
+                                                                  backgroundColor:
+                                                                      AppTheme
+                                                                          .successColor,
                                                                 ),
-                                                          );
-                                                      if (result != null &&
-                                                          mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              '${result['quantity']}x ${product.name} ajouté${result['quantity'] > 1 ? 's' : ''} au panier',
-                                                            ),
-                                                            backgroundColor:
-                                                                AppTheme
-                                                                    .successColor,
-                                                          ),
-                                                        );
-                                                      }
-                                                    },
-                                                    icon: const Icon(
-                                                      Icons
-                                                          .add_shopping_cart_rounded,
+                                                              );
+                                                            }
+                                                          }
+                                                        : null,
+                                                    icon: Icon(
+                                                      product.isAvailable
+                                                          ? Icons.add_shopping_cart_rounded
+                                                          : Icons.block_rounded,
                                                       size: 18,
                                                     ),
-                                                    label: const Text(
-                                                      'Ajouter',
-                                                      style: TextStyle(
+                                                    label: Text(
+                                                      product.isAvailable ? 'Ajouter' : 'Indisponible',
+                                                      style: const TextStyle(
                                                         fontSize: 12,
                                                         fontWeight:
                                                             FontWeight.w600,
@@ -400,8 +403,11 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                                                             vertical: 10,
                                                           ),
                                                       elevation: 0,
-                                                      backgroundColor:
-                                                          AppTheme.primaryColor,
+                                                      backgroundColor: product.isAvailable
+                                                          ? AppTheme.primaryColor
+                                                          : Colors.grey.shade300,
+                                                      disabledBackgroundColor: Colors.grey.shade300,
+                                                      disabledForegroundColor: Colors.grey.shade600,
                                                       foregroundColor:
                                                           Colors.white,
                                                       shape: RoundedRectangleBorder(

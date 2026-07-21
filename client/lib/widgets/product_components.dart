@@ -170,15 +170,15 @@ class ProductCard extends StatelessWidget {
                   },
                 ),
                 GestureDetector(
-                  onTap: onAddToCart,
+                  onTap: product.isAvailable ? onAddToCart : null,
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
+                      color: product.isAvailable ? AppTheme.primaryColor : Colors.grey.shade400,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
-                      Icons.add_shopping_cart,
+                    child: Icon(
+                      product.isAvailable ? Icons.add_shopping_cart : Icons.block,
                       color: Colors.white,
                       size: 22,
                     ),
