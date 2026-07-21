@@ -193,23 +193,6 @@ class _CartTabState extends State<CartTab> {
     );
   }
 
-  DeliveryFeeResult _resolveDeliveryFee(ParsedDeliveryContext context) {
-    final wilayaCode = _resolveWilayaCode(
-      context.wilayaName,
-      context.simplifiedAddress,
-      context,
-    );
-
-    if (wilayaCode == null || !_allowedWilayaCodes.contains(wilayaCode)) {
-      return DeliveryFeeResult(
-        fee: 0.0,
-        isAllowed: false,
-        wilayaCode: wilayaCode,
-        wilayaName: context.wilayaName,
-        communeName: context.communeName,
-      );
-    }
-
   bool _hasElectroMenagerInCart() {
     for (final item in _cartItems) {
       final categoryId = item.categoryId ?? '';
@@ -306,6 +289,23 @@ class _CartTabState extends State<CartTab> {
     }
     return false;
   }
+
+  DeliveryFeeResult _resolveDeliveryFee(ParsedDeliveryContext context) {
+    final wilayaCode = _resolveWilayaCode(
+      context.wilayaName,
+      context.simplifiedAddress,
+      context,
+    );
+
+    if (wilayaCode == null || !_allowedWilayaCodes.contains(wilayaCode)) {
+      return DeliveryFeeResult(
+        fee: 0.0,
+        isAllowed: false,
+        wilayaCode: wilayaCode,
+        wilayaName: context.wilayaName,
+        communeName: context.communeName,
+      );
+    }
 
     double fee;
     final hasElectro = _hasElectroMenagerInCart();

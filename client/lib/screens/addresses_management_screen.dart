@@ -12,7 +12,8 @@ import '../theme/app_theme.dart';
 import '../widgets/gps_map_selection_modal.dart';
 
 class AddressesManagementScreen extends StatefulWidget {
-  const AddressesManagementScreen({super.key});
+  final VoidCallback? onAddressAdded;
+  const AddressesManagementScreen({super.key, this.onAddressAdded});
 
   @override
   State<AddressesManagementScreen> createState() =>
@@ -36,14 +37,15 @@ class _AddressesManagementScreenState extends State<AddressesManagementScreen> {
       final addresses = await AddressService.getAddresses();
       final defaultAddr = await AddressService.getDefaultAddress();
 
-      setState(() {
-        _addresses = addresses;
-        _defaultAddressId = defaultAddr?['id'];
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _addresses = addresses;
+          _defaultAddressId = defaultAddr?['id'];
+          _loading = false;
+        });
+      }
     } catch (e) {
-      print('Error loading addresses: $e');
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
