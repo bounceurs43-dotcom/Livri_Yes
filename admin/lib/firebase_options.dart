@@ -46,7 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
     authDomain: 'salimstore-f1830.firebaseapp.com',
-    databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
+    databaseURL: 'https://salimstore-f1830.firebaseio.com',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
     measurementId: 'G-S56376RNE1',
   );
@@ -56,7 +56,7 @@ class DefaultFirebaseOptions {
     appId: '1:550016293282:android:3af432aef102dc3bc63afb',
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
-    databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
+    databaseURL: 'https://salimstore-f1830.firebaseio.com',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
   );
 
@@ -65,7 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:550016293282:ios:261b1474c595079ac63afb',
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
-    databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
+    databaseURL: 'https://salimstore-f1830.firebaseio.com',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
     iosBundleId: 'com.livriyes.admin',
   );
@@ -75,7 +75,7 @@ class DefaultFirebaseOptions {
     appId: '1:550016293282:ios:6f8926f9d4ba622fc63afb',
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
-    databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
+    databaseURL: 'https://salimstore-f1830.firebaseio.com',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
     iosBundleId: 'com.livriyes.admin',
   );
@@ -86,7 +86,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
     authDomain: 'salimstore-f1830.firebaseapp.com',
-    databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
+    databaseURL: 'https://salimstore-f1830.firebaseio.com',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
     measurementId: 'G-D9ENYVLQCW',
   );

@@ -290,6 +290,23 @@ class _CartTabState extends State<CartTab> {
     return false;
   }
 
+  bool _isWilayaCodeAllowed(String? wilayaCode) {
+    if (wilayaCode == null) return false;
+    if (_allowedWilayaCodes.isEmpty) return true;
+
+    final codePadded = wilayaCode.padLeft(2, '0');
+    final codeIntStr = int.tryParse(wilayaCode)?.toString() ?? wilayaCode;
+
+    return _allowedWilayaCodes.any((c) {
+      final cStr = c.toString().trim();
+      final cPadded = cStr.padLeft(2, '0');
+      final cIntStr = int.tryParse(cStr)?.toString() ?? cStr;
+      return cStr == wilayaCode ||
+          cPadded == codePadded ||
+          cIntStr == codeIntStr;
+    });
+  }
+
   DeliveryFeeResult _resolveDeliveryFee(ParsedDeliveryContext context) {
     final wilayaCode = _resolveWilayaCode(
       context.wilayaName,
@@ -297,7 +314,7 @@ class _CartTabState extends State<CartTab> {
       context,
     );
 
-    if (wilayaCode == null || !_allowedWilayaCodes.contains(wilayaCode)) {
+    if (wilayaCode == null || !_isWilayaCodeAllowed(wilayaCode)) {
       return DeliveryFeeResult(
         fee: 0.0,
         isAllowed: false,
@@ -647,31 +664,15 @@ class _CartTabState extends State<CartTab> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Colors.grey),
-                  label: const Text('Fermer', style: TextStyle(color: Colors.grey)),
-                ),
-              ),
-              AddressesManagementScreen(
-                onAddressAdded: () {
-                  Navigator.pop(context);
-                  _loadDeliveryAddress();
-                },
-              ),
-            ],
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.88,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: AddressesManagementScreen(
+            onAddressAdded: () {
+              Navigator.pop(context);
+              _loadDeliveryAddress();
+            },
           ),
         ),
       ),
@@ -1960,9 +1961,19 @@ class _CartTabState extends State<CartTab> {
         ? (_expressDeliveryTotalCost - _deliveryFee)
         : 0.0;
     final hasTip = _tip > 0;
-    final hasReceiver = _receiverName?.isNotEmpty == true && _receiverPhone?.isNotEmpty == true;
-    final canPlaceOrder =
-        _ordersEnabled && _deliveryAvailable && _selectedAddress != null && hasReceiver && _acceptedDeliveryTime && _cartItems.isNotEmpty;
+    final recipientName = _selectedAddress?['recipientName']?.toString().trim() ??
+        _selectedAddress?['name']?.toString().trim() ??
+        _receiverName?.trim();
+    final phone = _selectedAddress?['phone']?.toString().trim() ??
+        _receiverPhone?.trim();
+    final hasReceiver = (recipientName != null && recipientName.isNotEmpty) ||
+        (phone != null && phone.isNotEmpty);
+    final canPlaceOrder = _ordersEnabled &&
+        _deliveryAvailable &&
+        _selectedAddress != null &&
+        hasReceiver &&
+        _acceptedDeliveryTime &&
+        _cartItems.isNotEmpty;
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
@@ -2635,17 +2646,18 @@ class _CartTabState extends State<CartTab> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          // 1. Dont livraison
+                          // 1. Total livraison
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Text(
-                                    'Dont livraison',
+                                    'Total livraison',
                                     style: TextStyle(
                                       color: AppTheme.textSecondary,
                                       fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -2654,13 +2666,46 @@ class _CartTabState extends State<CartTab> {
                                   style: TextStyle(
                                     color: AppTheme.textSecondary,
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           if (_hasElectroMenagerInCart()) ...[
+                            const SizedBox(height: 2),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8, right: 2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '  • Livraison',
+                                      style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 10,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatPrice(
+                                      ((_deliveryFee + expressFee) -
+                                              (_isBejaia
+                                                  ? _bejaiaElectroFee
+                                                  : _otherWilayaElectroFee))
+                                          .clamp(0.0, double.infinity),
+                                    ),
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             Padding(
                               padding: const EdgeInsets.only(left: 8, right: 2),

@@ -11,10 +11,14 @@ import '../theme/app_theme.dart';
 
 class GpsMapSelectionModal extends StatefulWidget {
   final LatLng? initialLocation;
+  final String? initialWilaya;
+  final String? initialCommune;
 
   const GpsMapSelectionModal({
     super.key,
     this.initialLocation,
+    this.initialWilaya,
+    this.initialCommune,
   });
 
   @override
@@ -29,6 +33,7 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
   LatLng? _selectedLocation;
   String? _formattedAddress;
   String? _detectedWilaya;
+  String? _detectedCommune;
   bool _isAllowedWilaya = true;
 
   bool _loadingGps = false;
@@ -44,7 +49,62 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
       _currentLocation = widget.initialLocation!;
       _selectedLocation = widget.initialLocation!;
       _reverseGeocode(_selectedLocation!);
+    } else if (widget.initialWilaya != null && widget.initialWilaya!.isNotEmpty) {
+      _initFromWilayaCommune();
     } else {
+      _detectGpsLocation(initial: true);
+    }
+  }
+
+  Future<void> _initFromWilayaCommune() async {
+    final parts = <String>[];
+    if (widget.initialCommune != null && widget.initialCommune!.isNotEmpty) {
+      parts.add(widget.initialCommune!);
+    }
+    if (widget.initialWilaya != null && widget.initialWilaya!.isNotEmpty) {
+      parts.add(widget.initialWilaya!);
+    }
+    parts.add('Algeria');
+    final query = parts.join(', ');
+
+    _searchController.text = query;
+    if (mounted) setState(() => _isSearching = true);
+
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=1&countrycodes=dz',
+      );
+      final response = await http.get(url, headers: {'User-Agent': 'LivriYesApp'}).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        if (data.isNotEmpty && data.first is Map) {
+          final first = data.first as Map<String, dynamic>;
+          final lat = double.tryParse(first['lat'].toString()) ?? 0.0;
+          final lon = double.tryParse(first['lon'].toString()) ?? 0.0;
+          if (lat != 0.0 && lon != 0.0) {
+            final target = LatLng(lat, lon);
+            final displayName = first['display_name']?.toString() ?? query;
+
+            if (mounted) {
+              setState(() {
+                _currentLocation = target;
+                _selectedLocation = target;
+                _formattedAddress = displayName;
+                _detectedWilaya = widget.initialWilaya;
+                _detectedCommune = widget.initialCommune;
+                _isAllowedWilaya = _checkIfWilayaAllowed(displayName);
+                _isSearching = false;
+              });
+              _mapController.move(target, 14.0);
+              return;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isSearching = false);
       _detectGpsLocation(initial: true);
     }
   }
@@ -72,19 +132,44 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
         .replaceAll('ç', 'c');
   }
 
+  String? _matchWilaya(String input) {
+    if (!CityService.isLoaded()) return null;
+    final normInput = _normalize(input);
+    final allWilayas = CityService.getAllWilayas();
+    for (final w in allWilayas) {
+      final normW = _normalize(w);
+      if (normInput.contains(normW) || normW.contains(normInput)) {
+        return w;
+      }
+    }
+    return null;
+  }
+
+  String? _matchCommune(String wilaya, String input) {
+    if (!CityService.isLoaded()) return null;
+    final normInput = _normalize(input);
+    final communes = CityService.getCommunesForWilaya(wilaya);
+    for (final c in communes) {
+      final normC = _normalize(c);
+      if (normInput.contains(normC) || normC.contains(normInput)) {
+        return c;
+      }
+    }
+    return null;
+  }
+
   bool _checkIfWilayaAllowed(String addressText) {
     if (!CityService.isLoaded()) return true;
     final allowedWilayas = CityService.getWilayas();
-    if (allowedWilayas.isEmpty) return true;
 
-    final normAddr = _normalize(addressText);
-    for (final w in allowedWilayas) {
-      if (normAddr.contains(_normalize(w))) {
-        _detectedWilaya = w;
-        return true;
-      }
+    final matched = _matchWilaya(addressText);
+    if (matched != null) {
+      _detectedWilaya = matched;
+      _detectedCommune = _matchCommune(matched, addressText);
+      if (allowedWilayas.isEmpty) return true;
+      return allowedWilayas.contains(matched);
     }
-    return false;
+    return true;
   }
 
   Future<void> _detectGpsLocation({bool initial = false}) async {
@@ -136,6 +221,7 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
     setState(() => _reverseGeocoding = true);
     String? fullAddr;
     String? foundWilaya;
+    String? foundCommune;
 
     try {
       final url = Uri.parse(
@@ -144,25 +230,60 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
       final response = await http.get(url, headers: {'User-Agent': 'LivriYesApp'}).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data is Map && data.containsKey('display_name')) {
-          fullAddr = data['display_name']?.toString();
+        if (data is Map) {
+          if (data.containsKey('display_name')) {
+            fullAddr = data['display_name']?.toString();
+          }
+          if (data['address'] is Map) {
+            final addrMap = data['address'] as Map;
+            final rawState = addrMap['state'] ?? addrMap['province'] ?? addrMap['county'] ?? addrMap['state_district'];
+            if (rawState != null) {
+              foundWilaya = _matchWilaya(rawState.toString());
+            }
+            final rawCommune = addrMap['city'] ?? addrMap['town'] ?? addrMap['village'] ?? addrMap['suburb'] ?? addrMap['municipality'] ?? addrMap['district'];
+            if (rawCommune != null) {
+              if (foundWilaya != null) {
+                foundCommune = _matchCommune(foundWilaya, rawCommune.toString());
+              } else {
+                foundWilaya = _matchWilaya(rawCommune.toString());
+              }
+            }
+          }
         }
       }
     } catch (_) {}
 
-    if (fullAddr == null || fullAddr.isEmpty) {
+    if (fullAddr == null || fullAddr.isEmpty || foundWilaya == null) {
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(location.latitude, location.longitude);
         if (placemarks.isNotEmpty) {
           final p = placemarks.first;
-          final parts = <String>[];
-          if (p.street != null && p.street!.trim().isNotEmpty) parts.add(p.street!.trim());
-          if (p.subLocality != null && p.subLocality!.trim().isNotEmpty) parts.add(p.subLocality!.trim());
-          if (p.locality != null && p.locality!.trim().isNotEmpty) parts.add(p.locality!.trim());
-          if (p.administrativeArea != null && p.administrativeArea!.trim().isNotEmpty) parts.add(p.administrativeArea!.trim());
-          if (p.country != null && p.country!.trim().isNotEmpty) parts.add(p.country!.trim());
-          if (parts.isNotEmpty) {
-            fullAddr = parts.join(', ');
+          if (fullAddr == null || fullAddr.isEmpty) {
+            final parts = <String>[];
+            if (p.street != null && p.street!.trim().isNotEmpty) parts.add(p.street!.trim());
+            if (p.subLocality != null && p.subLocality!.trim().isNotEmpty) parts.add(p.subLocality!.trim());
+            if (p.locality != null && p.locality!.trim().isNotEmpty) parts.add(p.locality!.trim());
+            if (p.administrativeArea != null && p.administrativeArea!.trim().isNotEmpty) parts.add(p.administrativeArea!.trim());
+            if (p.country != null && p.country!.trim().isNotEmpty) parts.add(p.country!.trim());
+            if (parts.isNotEmpty) {
+              fullAddr = parts.join(', ');
+            }
+          }
+
+          if (foundWilaya == null && p.administrativeArea != null) {
+            foundWilaya = _matchWilaya(p.administrativeArea!);
+          }
+          if (foundWilaya == null && p.locality != null) {
+            foundWilaya = _matchWilaya(p.locality!);
+          }
+
+          if (foundWilaya != null && foundCommune == null) {
+            if (p.subLocality != null) {
+              foundCommune = _matchCommune(foundWilaya, p.subLocality!);
+            }
+            if (foundCommune == null && p.locality != null) {
+              foundCommune = _matchCommune(foundWilaya, p.locality!);
+            }
           }
         }
       } catch (_) {}
@@ -170,7 +291,13 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
 
     fullAddr ??= '${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}';
 
-    // Verify Wilaya availability
+    if (foundWilaya != null) {
+      _detectedWilaya = foundWilaya;
+    }
+    if (foundCommune != null) {
+      _detectedCommune = foundCommune;
+    }
+
     bool allowed = _checkIfWilayaAllowed(fullAddr);
 
     if (mounted) {
@@ -266,6 +393,7 @@ class _GpsMapSelectionModalState extends State<GpsMapSelectionModal> {
     Navigator.pop(context, {
       'address': _formattedAddress,
       'wilaya': _detectedWilaya,
+      'commune': _detectedCommune,
       'latitude': _selectedLocation!.latitude,
       'longitude': _selectedLocation!.longitude,
     });

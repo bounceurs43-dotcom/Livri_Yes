@@ -351,11 +351,21 @@ class _AddAddressModalForm extends StatefulWidget {
   State<_AddAddressModalForm> createState() => _AddAddressModalFormState();
 }
 
-class _AddAddressModalFormState extends State<_AddAddressModalForm> {
+class _AddAddressModalFormState extends State<_AddAddressModalForm>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _labelController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(text: '+213');
+  final TextEditingController _phoneController = TextEditingController(text: '');
   final TextEditingController _notesController = TextEditingController();
+
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+
+  String? _labelError;
+  String? _nameError;
+  String? _phoneError;
+  String? _wilayaError;
+  String? _communeError;
 
   String? _selectedWilaya;
   String? _selectedCommune;
@@ -367,11 +377,40 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+
+    _labelController.addListener(() {
+      if (_labelError != null && _labelController.text.trim().isNotEmpty) {
+        setState(() => _labelError = null);
+      }
+    });
+    _nameController.addListener(() {
+      if (_nameError != null && _nameController.text.trim().isNotEmpty) {
+        setState(() => _nameError = null);
+      }
+    });
+    _phoneController.addListener(() {
+      if (_phoneError != null && _phoneController.text.trim().isNotEmpty) {
+        setState(() => _phoneError = null);
+      }
+    });
+
     _loadWilayasData();
   }
 
   @override
   void dispose() {
+    _shakeController.dispose();
     _labelController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
@@ -421,7 +460,27 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       _selectedWilaya = wilaya;
       _communes = CityService.getCommunesForWilaya(wilaya);
       _selectedCommune = _communes.isNotEmpty ? _communes.first : null;
+      _wilayaError = null;
+      _communeError = null;
     });
+  }
+
+  String _normalize(String str) {
+    return str
+        .toLowerCase()
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ï', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ô', 'o')
+        .replaceAll('û', 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll('-', ' ')
+        .replaceAll("'", ' ');
   }
 
   Future<void> _fillAddressFromGps() async {
@@ -429,71 +488,128 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const GpsMapSelectionModal(),
+      builder: (context) => GpsMapSelectionModal(
+        initialWilaya: _selectedWilaya,
+        initialCommune: _selectedCommune,
+      ),
     );
 
     if (result != null && result['address'] != null) {
       setState(() {
         _notesController.text = result['address'];
         final detectedWilaya = result['wilaya']?.toString();
-        if (detectedWilaya != null && _allWilayas.contains(detectedWilaya)) {
-          _selectedWilaya = detectedWilaya;
+        final detectedCommune = result['commune']?.toString();
+
+        if (detectedWilaya != null && detectedWilaya.isNotEmpty) {
+          final normDetectedWilaya = _normalize(detectedWilaya);
+          String? matchedWilaya;
+
+          for (final w in _allWilayas) {
+            final normW = _normalize(w);
+            if (normW == normDetectedWilaya ||
+                normDetectedWilaya.contains(normW) ||
+                normW.contains(normDetectedWilaya)) {
+              matchedWilaya = w;
+              break;
+            }
+          }
+
+          if (matchedWilaya != null) {
+            _selectedWilaya = matchedWilaya;
+            _communes = CityService.getCommunesForWilaya(matchedWilaya);
+
+            if (detectedCommune != null && detectedCommune.isNotEmpty) {
+              final normDetectedCommune = _normalize(detectedCommune);
+              String? matchedCommune;
+              for (final c in _communes) {
+                final normC = _normalize(c);
+                if (normC == normDetectedCommune ||
+                    normDetectedCommune.contains(normC) ||
+                    normC.contains(normDetectedCommune)) {
+                  matchedCommune = c;
+                  break;
+                }
+              }
+              if (matchedCommune != null) {
+                _selectedCommune = matchedCommune;
+              } else if (_communes.isNotEmpty) {
+                _selectedCommune = _communes.first;
+              }
+            } else if (_communes.isNotEmpty) {
+              _selectedCommune = _communes.first;
+            }
+            _wilayaError = null;
+            _communeError = null;
+          }
         }
       });
     }
   }
 
   Future<void> _submitAddress() async {
+    bool hasError = false;
+    String? labelErr;
+    String? nameErr;
+    String? phoneErr;
+    String? wilayaErr;
+    String? communeErr;
+
     final label = _labelController.text.trim();
     if (label.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez saisir un label pour l\'adresse (ex: Maison, Bureau) *'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
+      labelErr = 'Veuillez saisir un label (ex: Maison, Bureau)';
+      hasError = true;
     }
 
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez saisir le nom du destinataire *'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
+      nameErr = 'Veuillez saisir le nom du destinataire';
+      hasError = true;
     }
 
-    final rawPhone = _phoneController.text.trim().replaceAll('+213', '').replaceAll(' ', '').trim();
-    if (rawPhone.isEmpty || (rawPhone.length != 9 && rawPhone.length != 10)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez saisir un numéro de téléphone valide (ex: 778029960) *'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
+    String rawPhone = _phoneController.text.trim().replaceAll('+213', '').replaceAll(' ', '').trim();
+    if (rawPhone.startsWith('0')) {
+      if (rawPhone.length == 10 && (rawPhone.startsWith('05') || rawPhone.startsWith('06') || rawPhone.startsWith('07'))) {
+        rawPhone = rawPhone.substring(1);
+      } else {
+        if (!rawPhone.startsWith('05') && !rawPhone.startsWith('06') && !rawPhone.startsWith('07')) {
+          phoneErr = 'Numéro invalide (doit commencer par 05, 06 ou 07)';
+        } else {
+          phoneErr = 'Numéro incomplet (doit contenir 10 chiffres)';
+        }
+        hasError = true;
+      }
+    } else {
+      if (rawPhone.length == 9 && (rawPhone.startsWith('5') || rawPhone.startsWith('6') || rawPhone.startsWith('7'))) {
+        // Valid 9 digits starting with 5, 6, 7
+      } else {
+        if (!rawPhone.startsWith('5') && !rawPhone.startsWith('6') && !rawPhone.startsWith('7')) {
+          phoneErr = 'Numéro invalide (doit commencer par 5, 6 ou 7)';
+        } else {
+          phoneErr = 'Numéro incomplet (doit contenir 9 chiffres)';
+        }
+        hasError = true;
+      }
     }
 
     if (_selectedWilaya == null || _selectedWilaya!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez sélectionner une Wilaya *'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
+      wilayaErr = 'Veuillez sélectionner une Wilaya';
+      hasError = true;
     }
 
     if (_selectedCommune == null || _selectedCommune!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Veuillez sélectionner une Commune *'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      communeErr = 'Veuillez sélectionner une Commune';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setState(() {
+        _labelError = labelErr;
+        _nameError = nameErr;
+        _phoneError = phoneErr;
+        _wilayaError = wilayaErr;
+        _communeError = communeErr;
+      });
+      _shakeController.forward(from: 0.0);
       return;
     }
 
@@ -557,61 +673,119 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
+    String? errorText,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FA),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+    final hasError = errorText != null && errorText.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: hasError ? const Color(0xFFFFF2F2) : const Color(0xFFF5F7FA),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasError ? AppTheme.errorColor : Colors.transparent,
+              width: hasError ? 1.5 : 1.0,
+            ),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
           ),
         ),
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, size: 13, color: AppTheme.errorColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    errorText,
+                    style: const TextStyle(color: AppTheme.errorColor, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildPhoneField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FA),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TextField(
-        controller: _phoneController,
-        keyboardType: TextInputType.phone,
-        style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w600),
-        decoration: InputDecoration(
-          prefixIcon: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            margin: const EdgeInsets.only(right: 8),
-            decoration: const BoxDecoration(
-              border: Border(right: BorderSide(color: Color(0xFFE0E0E0), width: 1)),
-            ),
-            child: const Text(
-              '+213',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+    final hasError = _phoneError != null && _phoneError!.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: hasError ? const Color(0xFFFFF2F2) : const Color(0xFFF5F7FA),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasError ? AppTheme.errorColor : Colors.transparent,
+              width: hasError ? 1.5 : 1.0,
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-          hintText: 'Téléphone (ex: 778029960)',
-          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.normal),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              AlgerianPhoneInputFormatter(),
+            ],
+            style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              prefixIcon: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: const BoxDecoration(
+                  border: Border(right: BorderSide(color: Color(0xFFE0E0E0), width: 1)),
+                ),
+                child: const Text(
+                  '+213',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+              hintText: 'Ex: 0778029960 ou 778029960',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.normal),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
         ),
-      ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, size: 13, color: AppTheme.errorColor),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    _phoneError!,
+                    style: const TextStyle(color: AppTheme.errorColor, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -635,42 +809,55 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       );
     }
 
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _allWilayas.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final wilaya = _allWilayas[index];
-          final isSelected = _selectedWilaya == wilaya;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 48,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _allWilayas.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final wilaya = _allWilayas[index];
+              final isSelected = _selectedWilaya == wilaya;
 
-          return ChoiceChip(
-            label: Text(
-              wilaya,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
-              ),
-            ),
-            selected: isSelected,
-            selectedColor: AppTheme.primaryColor,
-            backgroundColor: const Color(0xFFF5F7FA),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-              ),
-            ),
-            onSelected: (selected) {
-              if (selected) {
-                _onWilayaSelected(wilaya);
-              }
+              return ChoiceChip(
+                label: Text(
+                  wilaya,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : AppTheme.textPrimary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: AppTheme.primaryColor,
+                backgroundColor: const Color(0xFFF5F7FA),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                  ),
+                ),
+                onSelected: (selected) {
+                  if (selected) {
+                    _onWilayaSelected(wilaya);
+                  }
+                },
+              );
             },
-          );
-        },
-      ),
+          ),
+        ),
+        if (_wilayaError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              _wilayaError!,
+              style: const TextStyle(color: AppTheme.errorColor, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+      ],
     );
   }
 
@@ -685,128 +872,124 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
       );
     }
 
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _communes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final commune = _communes[index];
-          final isSelected = _selectedCommune == commune;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 48,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _communes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final commune = _communes[index];
+              final isSelected = _selectedCommune == commune;
 
-          return ChoiceChip(
-            label: Text(
-              commune,
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppTheme.textPrimary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
-              ),
-            ),
-            selected: isSelected,
-            selectedColor: AppTheme.primaryColor,
-            backgroundColor: const Color(0xFFF5F7FA),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-              ),
-            ),
-            onSelected: (selected) {
-              setState(() {
-                _selectedCommune = selected ? commune : null;
-              });
+              return ChoiceChip(
+                label: Text(
+                  commune,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : AppTheme.textPrimary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: AppTheme.primaryColor,
+                backgroundColor: const Color(0xFFF5F7FA),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                  ),
+                ),
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedCommune = selected ? commune : null;
+                    if (selected) _communeError = null;
+                  });
+                },
+              );
             },
-          );
-        },
-      ),
+          ),
+        ),
+        if (_communeError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4),
+            child: Text(
+              _communeError!,
+              style: const TextStyle(color: AppTheme.errorColor, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title Row: Green Pin Icon + Nouvelle adresse
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.12),
-                shape: BoxShape.circle,
+    return AnimatedBuilder(
+      animation: _shakeAnimation,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(_shakeAnimation.value, 0),
+        child: child,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title Row: Green Pin Icon + Nouvelle adresse
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_on,
+                  color: AppTheme.primaryColor,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.location_on,
-                color: AppTheme.primaryColor,
-                size: 20,
+              const SizedBox(width: 10),
+              const Text(
+                'Nouvelle adresse',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Nouvelle adresse',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-        // Input 1: Label
-        _buildTextField(
-          controller: _labelController,
-          hintText: 'Label (ex: Maison, Bureau)',
-        ),
-        const SizedBox(height: 12),
+          // Input 1: Label
+          _buildTextField(
+            controller: _labelController,
+            hintText: 'Label (ex: Maison, Bureau)',
+            errorText: _labelError,
+          ),
+          const SizedBox(height: 12),
 
-        // Input 2: Destinataire (Changed from Nom et prénom du bénéficiaire)
-        _buildTextField(
-          controller: _nameController,
-          hintText: 'Destinataire',
-        ),
-        const SizedBox(height: 12),
+          // Input 2: Destinataire
+          _buildTextField(
+            controller: _nameController,
+            hintText: 'Destinataire',
+            errorText: _nameError,
+          ),
+          const SizedBox(height: 12),
 
-        // Input 3: Phone Number with Fixed +213
-        _buildPhoneField(),
-        const SizedBox(height: 16),
+          // Input 3: Phone Number with Fixed +213
+          _buildPhoneField(),
+          const SizedBox(height: 16),
 
-        // Section: Wilaya *
-        Row(
-          children: const [
-            Text(
-              'Wilaya ',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            Text(
-              '*',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.errorColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildWilayaSelector(),
-        const SizedBox(height: 16),
-
-        // Section: Commune
-        if (_selectedWilaya != null && _selectedWilaya!.isNotEmpty) ...[
+          // Section: Wilaya *
           Row(
             children: const [
               Text(
-                'Commune ',
+                'Wilaya ',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -824,87 +1007,137 @@ class _AddAddressModalFormState extends State<_AddAddressModalForm> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildCommuneSelector(),
+          _buildWilayaSelector(),
           const SizedBox(height: 16),
-        ],
 
-        // GPS Action Button
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: InkWell(
-              onTap: _fillAddressFromGps,
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+          // Section: Commune
+          if (_selectedWilaya != null && _selectedWilaya!.isNotEmpty) ...[
+            Row(
+              children: const [
+                Text(
+                  'Commune ',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.map, size: 16, color: AppTheme.primaryColor),
-                    SizedBox(width: 6),
-                    Text(
-                      '📍 Choisir sur la carte (GPS)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                Text(
+                  '*',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.errorColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildCommuneSelector(),
+            const SizedBox(height: 16),
+          ],
+
+          // GPS Action Button
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: InkWell(
+                onTap: _fillAddressFromGps,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.map, size: 16, color: AppTheme.primaryColor),
+                      SizedBox(width: 6),
+                      Text(
+                        '📍 Choisir sur la carte (GPS)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
 
-        // Input 4: Message facultatif (étage, adresse exacte, etc..)
-        _buildTextField(
-          controller: _notesController,
-          hintText: 'Message facultatif (étage, adresse exacte, etc..)',
-          maxLines: 3,
-        ),
-        const SizedBox(height: 20),
+          // Input 4: Message facultatif (étage, adresse exacte, etc..)
+          _buildTextField(
+            controller: _notesController,
+            hintText: 'Message facultatif (étage, adresse exacte, etc..)',
+            maxLines: 3,
+          ),
+          const SizedBox(height: 20),
 
-        // Submit Button: + Ajouter l'adresse
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _submitting ? null : _submitAddress,
-            icon: _submitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.add, size: 20),
-            label: Text(
-              _submitting ? 'Enregistrement...' : 'Ajouter l\'adresse',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+          // Submit Button: + Ajouter l'adresse
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _submitting ? null : _submitAddress,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.add, size: 20),
+              label: Text(
+                _submitting ? 'Enregistrement...' : 'Ajouter l\'adresse',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
               ),
-              elevation: 0,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+class AlgerianPhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String text = newValue.text;
+    if (text.isEmpty) return newValue;
+
+    text = text.replaceAll(RegExp(r'\D'), '');
+    int maxLen = text.startsWith('0') ? 10 : 9;
+
+    if (text.length > maxLen) {
+      text = text.substring(0, maxLen);
+    }
+
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }
