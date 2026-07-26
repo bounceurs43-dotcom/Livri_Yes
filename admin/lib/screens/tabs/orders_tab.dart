@@ -379,9 +379,13 @@ class OrdersTabState extends State<OrdersTab>
     final cartTotal = _safeToDouble(order['cartTotal']);
     final deliveryFee = _safeToDouble(order['deliveryFee']);
     final expressFee = _safeToDouble(order['expressFee']);
-    final prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee']);
     final tip = _safeToDouble(order['tip']);
     final total = _safeToDouble(order['total']);
+    double prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee'] ?? order['preparationFeeAmount'] ?? order['prepFee']);
+    if (prepFee <= 0) {
+      final diff = total - (cartTotal + deliveryFee + expressFee + tip);
+      if (diff > 0.01) prepFee = diff;
+    }
 
     String formatCurrency(double value) => '${value.toStringAsFixed(2)} €';
 
@@ -2255,7 +2259,11 @@ class OrdersTabState extends State<OrdersTab>
                       }()),
                       const Divider(),
                        (() {
-                         final prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee']);
+                         double prepFee = _safeToDouble(order['preparationFee'] ?? order['totalPreparationFee'] ?? order['preparationFeeAmount'] ?? order['prepFee']);
+                         if (prepFee <= 0) {
+                           final diff = total - (cartTotal + deliveryFee + expressFee + tip);
+                           if (diff > 0.01) prepFee = diff;
+                         }
                          return Column(
                            children: [
                              _buildDetailRow('Sous-total', '${cartTotal.toStringAsFixed(2)} €'),

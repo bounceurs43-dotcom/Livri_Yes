@@ -241,7 +241,11 @@ class OrderService {
       );
       
       // NEW: Guarantee admin receives email by sending it directly from client app
-      await NotificationService.notifyAdminNewOrder(orderId);
+      await NotificationService.notifyAdminNewOrder(
+        orderId,
+        total: '${total.toStringAsFixed(2)} €',
+        deliveryAddress: deliveryAddress ?? 'Non spécifiée',
+      );
     } catch (e) {
       print('Error showing local notification or sending email: $e');
     }

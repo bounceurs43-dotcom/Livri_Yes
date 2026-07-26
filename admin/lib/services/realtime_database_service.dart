@@ -329,6 +329,7 @@ class RealtimeDatabaseService {
                 categoryData['createdAt'] ??
                 DateTime.now().millisecondsSinceEpoch,
             'order': categoryData['order'] ?? 0,
+            'preparationFee': categoryData['preparationFee'] ?? 0.0,
           });
 
           categories.add(category);

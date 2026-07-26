@@ -159,7 +159,9 @@ class Category {
           ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
           : (json['createdAt'] is String ? DateTime.parse(json['createdAt']) : DateTime.now()),
       order: json['order'] ?? 0,
-      preparationFee: (json['preparationFee'] ?? 0.0).toDouble(),
+      preparationFee: json['preparationFee'] != null
+          ? (double.tryParse(json['preparationFee'].toString()) ?? 0.0)
+          : 0.0,
     );
   }
 

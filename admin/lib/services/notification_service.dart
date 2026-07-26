@@ -219,4 +219,51 @@ class NotificationService {
     </html>
     ''';
   }
+
+  static Future<bool> notifyAdminNewOrder(
+    String orderId, {
+    String? total,
+    String? deliveryAddress,
+  }) async {
+    try {
+      final snap = await _db.ref('settings').child('notifications').get();
+      String targetEmail = 'salimbounceur@gmail.com';
+      if (snap.exists && snap.value is Map) {
+        final map = Map<dynamic, dynamic>.from(snap.value as Map);
+        if (map['email'] != null && map['email'].toString().trim().isNotEmpty) {
+          targetEmail = map['email'].toString().trim();
+        }
+      }
+
+      final totalStr = (total != null && total.isNotEmpty) ? total : '0.00 €';
+      final addressStr = (deliveryAddress != null && deliveryAddress.isNotEmpty) ? deliveryAddress : 'Non spécifiée';
+
+      final subject = 'Nouvelle commande Livriyes 🎊';
+      final htmlContent = '''
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #34C759; margin: 0; font-size: 24px;">Nouvelle commande Livriyes 🎊</h2>
+          </div>
+          <div style="line-height: 1.6; color: #374151; font-size: 15px;">
+            <p style="font-weight: bold; font-size: 16px;">Bonne nouvelle !</p>
+            <p>Une nouvelle commande d'un montant de <strong>$totalStr</strong> vient d'être passée sur livriyes, en destination de <strong>$addressStr</strong></p>
+            <p style="margin-top: 15px; color: #6b7280; font-size: 13px;">N° de commande : #$orderId</p>
+            <div style="margin-top: 25px; text-align: center;">
+              <a href="https://livriyes-seven.vercel.app/" style="display: inline-block; padding: 12px 24px; background-color: #34C759; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Accéder au panneau d'administration</a>
+            </div>
+          </div>
+        </div>
+      ''';
+
+      return await sendEmailNotification(
+        email: targetEmail,
+        subject: subject,
+        htmlContent: htmlContent,
+      );
+    } catch (e) {
+      if (kDebugMode) print('Error notifying admin: $e');
+      return false;
+    }
+  }
 }
+

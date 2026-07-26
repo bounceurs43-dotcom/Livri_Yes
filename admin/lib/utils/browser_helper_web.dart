@@ -50,3 +50,18 @@ Future<bool> sendEmailViaFetch(String url, String to, String subject, String htm
     return false;
   }
 }
+
+void downloadJsonFile(String fileName, String jsonContent) {
+  try {
+    final bytes = utf8.encode(jsonContent);
+    final blob = html.Blob([bytes], 'application/json');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  } catch (e) {
+    print('Error downloading JSON file: $e');
+  }
+}
+

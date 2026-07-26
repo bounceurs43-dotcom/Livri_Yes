@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/browser_helper.dart';
 
 class UpdateEmailDialog extends StatefulWidget {
   const UpdateEmailDialog({super.key});
@@ -14,6 +16,7 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
   bool _loading = true;
   bool _sending = false;
   List<Map<String, String>> _users = [];
+  List<Map<String, dynamic>> _fullUsers = [];
   Set<String> _selectedEmails = {};
   String _searchQuery = '';
   String _emailTemplate = 'announcement'; // 'announcement' or 'update'
@@ -50,21 +53,25 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
 
       final snap = await FirebaseDatabase.instance.ref('users').get();
       final List<Map<String, String>> loadedUsers = [];
-      if (snap.exists) {
+      final List<Map<String, dynamic>> fullUsers = [];
+      if (snap.exists && snap.value is Map) {
         final data = snap.value as Map<dynamic, dynamic>;
         data.forEach((key, value) {
           if (value == null) return;
-          final user = value as Map<dynamic, dynamic>;
-          final email = user['email']?.toString() ?? '';
-          final name = user['name']?.toString() ?? 'Utilisateur';
+          final userMap = Map<String, dynamic>.from(value as Map);
+          if (userMap['id'] == null) userMap['id'] = key.toString();
+          final email = userMap['email']?.toString() ?? '';
+          final name = userMap['name']?.toString() ?? 'Utilisateur';
           if (email.isNotEmpty && email.contains('@')) {
-            loadedUsers.add({'email': email, 'name': name});
+            loadedUsers.add({'email': email, 'name': name, 'id': key.toString()});
+            fullUsers.add(userMap);
           }
         });
       }
       if (mounted) {
         setState(() {
           _users = loadedUsers;
+          _fullUsers = fullUsers;
           _loading = false;
         });
       }
@@ -72,6 +79,33 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
       debugPrint('Error loading users: $e');
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _exportUsersJson() {
+    List<Map<String, dynamic>> dataToExport = [];
+    if (_selectedEmails.isNotEmpty) {
+      dataToExport = _fullUsers.where((u) {
+        final email = u['email']?.toString() ?? '';
+        return _selectedEmails.contains(email);
+      }).toList();
+    } else {
+      dataToExport = _fullUsers;
+    }
+
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aucun utilisateur à exporter.')),
+      );
+      return;
+    }
+
+    final jsonString = const JsonEncoder.withIndent('  ').convert(dataToExport);
+    final fileName = 'users_export_${DateTime.now().millisecondsSinceEpoch}.json';
+    downloadJsonFile(fileName, jsonString);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Exportation de ${dataToExport.length} utilisateur(s) réussie (JSON) ✅')),
+    );
   }
 
   Future<void> _sendEmails() async {
@@ -234,19 +268,36 @@ class _UpdateEmailDialogState extends State<UpdateEmailDialog> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('${_selectedEmails.length} sélectionnés sur ${_filteredUsers.length}'),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                if (_selectedEmails.length == _filteredUsers.length) {
-                                  // Deselect all currently filtered users
-                                  _selectedEmails.removeAll(_filteredUsers.map((e) => e['email']!));
-                                } else {
-                                  // Select all currently filtered users
-                                  _selectedEmails.addAll(_filteredUsers.map((e) => e['email']!));
-                                }
-                              });
-                            },
-                            child: Text(_selectedEmails.length == _filteredUsers.length && _filteredUsers.isNotEmpty ? 'Désélectionner tout' : 'Sélectionner tout'),
+                          Row(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _exportUsersJson,
+                                icon: const Icon(Icons.download, size: 14),
+                                label: const Text('Exporter JSON'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.accentColor,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    if (_selectedEmails.length == _filteredUsers.length) {
+                                      // Deselect all currently filtered users
+                                      _selectedEmails.removeAll(_filteredUsers.map((e) => e['email']!));
+                                    } else {
+                                      // Select all currently filtered users
+                                      _selectedEmails.addAll(_filteredUsers.map((e) => e['email']!));
+                                    }
+                                  });
+                                },
+                                child: Text(_selectedEmails.length == _filteredUsers.length && _filteredUsers.isNotEmpty ? 'Désélectionner tout' : 'Sélectionner tout'),
+                              ),
+                            ],
                           ),
                         ],
                       ),

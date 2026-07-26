@@ -3,3 +3,5 @@ void playBeepSound() {}
 Future<bool> sendEmailViaFetch(String url, String to, String subject, String htmlContent) async {
   return false;
 }
+void downloadJsonFile(String fileName, String jsonContent) {}
+
