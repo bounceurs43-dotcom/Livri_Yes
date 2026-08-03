@@ -1678,6 +1678,15 @@ class _CartTabState extends State<CartTab> {
         if (mounted) Navigator.of(context).pop();
       }
 
+      final effectiveReceiverName = _selectedAddress?['recipientName']?.toString().trim() ??
+          _selectedAddress?['name']?.toString().trim() ??
+          _selectedAddress?['receiverName']?.toString().trim() ??
+          _receiverName?.trim();
+      final effectiveReceiverPhone = _selectedAddress?['phone']?.toString().trim() ??
+          _selectedAddress?['receiverPhone']?.toString().trim() ??
+          _selectedAddress?['recipientPhone']?.toString().trim() ??
+          _receiverPhone?.trim();
+
       if (provider == 'stripe') {
         if (mounted) {
           Navigator.of(context).push(
@@ -1693,8 +1702,8 @@ class _CartTabState extends State<CartTab> {
                 deliveryLabel: deliveryLabel,
                 wilaya: wilaya,
                 wilayaCode: wilayaCode,
-                receiverName: _receiverName,
-                receiverPhone: _receiverPhone,
+                receiverName: effectiveReceiverName,
+                receiverPhone: effectiveReceiverPhone,
                 userId: FirebaseAuth.instance.currentUser?.uid,
                 unavailabilityPolicy: _unavailabilityPolicy,
               ),
@@ -1716,8 +1725,8 @@ class _CartTabState extends State<CartTab> {
                 deliveryLabel: deliveryLabel,
                 wilaya: wilaya,
                 wilayaCode: wilayaCode,
-                receiverName: _receiverName,
-                receiverPhone: _receiverPhone,
+                receiverName: effectiveReceiverName,
+                receiverPhone: effectiveReceiverPhone,
                 userId: FirebaseAuth.instance.currentUser?.uid,
                 unavailabilityPolicy: _unavailabilityPolicy,
                 paypalEmail: _paypalEmail ?? '',
@@ -1843,8 +1852,8 @@ class _CartTabState extends State<CartTab> {
         wilaya: wilaya,
         paymentMethod: 'Google Pay',
         paymentStatus: 'paid',
-        receiverName: _receiverName,
-        receiverPhone: _receiverPhone,
+        receiverName: _selectedAddress?['recipientName']?.toString().trim() ?? _selectedAddress?['name']?.toString().trim() ?? _receiverName,
+        receiverPhone: _selectedAddress?['phone']?.toString().trim() ?? _selectedAddress?['receiverPhone']?.toString().trim() ?? _receiverPhone,
         unavailabilityPolicy: _unavailabilityPolicy,
       );
 

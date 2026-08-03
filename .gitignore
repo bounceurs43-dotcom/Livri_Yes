@@ -8,3 +8,6 @@ push_out3.txt
 
 # Secrets - never commit root .env (contains secret keys)
 .env
+
+*.zip
+

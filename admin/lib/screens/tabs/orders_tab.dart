@@ -270,6 +270,29 @@ class OrdersTabState extends State<OrdersTab>
     return 'Autres';
   }
 
+  String _resolveReceiverName(Map<String, dynamic> order) {
+    var name = (order['receiverName'] ?? order['recipientName'] ?? order['receiver_name'] ?? order['recipient_name'] ?? '').toString().trim();
+    if (name.isEmpty && order['address'] is Map) {
+      name = (order['address']['recipientName'] ?? order['address']['receiverName'] ?? order['address']['name'] ?? '').toString().trim();
+    }
+    if (name.isEmpty && order['selectedAddress'] is Map) {
+      name = (order['selectedAddress']['recipientName'] ?? order['selectedAddress']['receiverName'] ?? order['selectedAddress']['name'] ?? '').toString().trim();
+    }
+    return name;
+  }
+
+  String _resolveReceiverPhone(Map<String, dynamic> order) {
+    var phone = (order['receiverPhone'] ?? order['recipientPhone'] ?? order['receiver_phone'] ?? order['recipient_phone'] ?? order['destinatairePhone'] ?? order['destinataire_phone'] ?? '').toString().trim();
+    if (phone.isEmpty && order['address'] is Map) {
+      phone = (order['address']['phone'] ?? order['address']['receiverPhone'] ?? order['address']['recipientPhone'] ?? '').toString().trim();
+    }
+    if (phone.isEmpty && order['selectedAddress'] is Map) {
+      phone = (order['selectedAddress']['phone'] ?? order['selectedAddress']['receiverPhone'] ?? order['selectedAddress']['recipientPhone'] ?? '').toString().trim();
+    }
+    return phone;
+  }
+
+
   List<pw.Widget> _buildGroupedItemsPdf(
     List<Map<String, dynamic>> items,
     pw.Font boldFont,
@@ -368,8 +391,8 @@ class OrdersTabState extends State<OrdersTab>
         (order['deliveryAddress'] ?? 'Adresse non spécifiée').toString();
     final phone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni')
         .toString();
-    final receiverName = (order['receiverName'] ?? '').toString();
-    final receiverPhone = (order['receiverPhone'] ?? '').toString();
+    final receiverName = _resolveReceiverName(order);
+    final receiverPhone = _resolveReceiverPhone(order);
     final hasReceiver =
         receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
     final createdAt = _parseOrderDate(order['createdAt']);
@@ -1284,8 +1307,8 @@ class OrdersTabState extends State<OrdersTab>
     final fallbackPhone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni').toString();
     final phone = _resolveCustomerPhone(order, fallback: fallbackPhone) ?? 'Non fourni';
     final email = _resolveCustomerEmail(order) ?? 'Non renseigné';
-    final receiverName = (order['receiverName'] ?? '').toString().trim();
-    final receiverPhone = (order['receiverPhone'] ?? '').toString().trim();
+    final receiverName = _resolveReceiverName(order);
+    final receiverPhone = _resolveReceiverPhone(order);
 
     showDialog(
       context: context,
@@ -1514,8 +1537,8 @@ class OrdersTabState extends State<OrdersTab>
             (order['deliveryAddress'] ?? 'Adresse non spécifiée').toString();
         final phone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni')
             .toString();
-        final receiverName = (order['receiverName'] ?? '').toString();
-        final receiverPhone = (order['receiverPhone'] ?? '').toString();
+        final receiverName = _resolveReceiverName(order);
+        final receiverPhone = _resolveReceiverPhone(order);
         final hasReceiver =
             receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
         final status = (order['status'] ?? '').toString();
@@ -1975,8 +1998,8 @@ class OrdersTabState extends State<OrdersTab>
             final normalizedPhone = (customerPhone ?? '').trim();
             final displayPhone = normalizedPhone.isEmpty || normalizedPhone == '—' ? 'Téléphone non renseigné' : normalizedPhone;
             final canCallClient = normalizedPhone.isNotEmpty && normalizedPhone != '—';
-            final receiverName = (order['receiverName'] ?? '').toString();
-            final receiverPhone = (order['receiverPhone'] ?? '').toString();
+            final receiverName = _resolveReceiverName(order);
+            final receiverPhone = _resolveReceiverPhone(order);
             final hasReceiver = receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
             final receiverLabel = hasReceiver
                 ? '${receiverName.trim().isNotEmpty ? receiverName.trim() : 'Destinataire'}${receiverPhone.trim().isNotEmpty ? ' • ${receiverPhone.trim()}' : ''}'
@@ -3003,8 +3026,8 @@ class OrdersTabState extends State<OrdersTab>
         normalizedStatus == 'livraison';
     final awaitingValidation = normalizedStatus == 'awaiting_confirmation';
     final canMarkDelivered = isProcessing || awaitingValidation;
-    final receiverName = (order['receiverName'] ?? '').toString();
-    final receiverPhone = (order['receiverPhone'] ?? '').toString();
+    final receiverName = _resolveReceiverName(order);
+    final receiverPhone = _resolveReceiverPhone(order);
     final hasReceiver =
         receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
     final receiverLabel = hasReceiver

@@ -218,10 +218,14 @@ class OrderService {
         'deliveryLabel': deliveryLabel,
       'wilaya': wilaya ?? '',
       'wilayaCode': wilayaCode,
-      if (receiverName != null && receiverName.isNotEmpty)
+      if (receiverName != null && receiverName.isNotEmpty) ...{
         'receiverName': receiverName,
-      if (receiverPhone != null && receiverPhone.isNotEmpty)
+        'recipientName': receiverName,
+      },
+      if (receiverPhone != null && receiverPhone.isNotEmpty) ...{
         'receiverPhone': receiverPhone,
+        'recipientPhone': receiverPhone,
+      },
       if (paymentMethod != null && paymentMethod.isNotEmpty)
         'paymentMethod': paymentMethod,
       if (paymentStatus != null && paymentStatus.isNotEmpty)
